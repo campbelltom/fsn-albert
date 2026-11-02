@@ -38,6 +38,7 @@ def main() -> None:
 
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
     n_new = n_fail = 0
+    reasons: dict[str, int] = {}
     with sync_playwright() as pw:
         br = pw.chromium.launch()
         ctx = br.new_context(user_agent="Mozilla/5.0 (fsn-albert personal fantasy model)")
@@ -57,6 +58,8 @@ def main() -> None:
                     resp = page.goto(url, wait_until="domcontentloaded", timeout=45000)
                     if resp is None or resp.status >= 400:
                         raise PWTimeout("http " + str(getattr(resp, "status", "?")))
+                    if n_new == 0 and n_fail < 2:
+                        print(f"probe {key}: status {resp.status}, title {page.title()!r}")
                     page.wait_for_selector("table.Opta-Squad", timeout=25000)
                     page.wait_for_selector("[class*=c111] table.Opta-Striped", state="attached", timeout=25000)
                     time.sleep(0.8)
@@ -65,6 +68,10 @@ def main() -> None:
                     if y < this_year:
                         missing.add(key)
                     n_fail += 1
+                    why = str(e).split("\n")[0][:90]
+                    reasons[why] = reasons.get(why, 0) + 1
+                    if sum(reasons.values()) <= 3:
+                        print(f"FAIL {key}: {type(e).__name__}: {why}; title={page.title()!r}")
                     continue
                 d.update({"season": y, "home": h, "away": w, "url": url, "source": "rfu"})
                 if len(d.get("players", [])) < 30:
@@ -74,7 +81,7 @@ def main() -> None:
                 print(f"{key}: {d.get('score')} players={len(d['players'])}")
         br.close()
     miss_f.write_text(json.dumps(sorted(missing)))
-    print(f"scraped {n_new} pages, {n_fail} not available")
+    print(f"scraped {n_new} pages, {n_fail} not available; reasons: {reasons}")
 
 
 if __name__ == "__main__":

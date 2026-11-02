@@ -28,7 +28,7 @@ def _get(url: str) -> dict:
 
 def events(year: int) -> list[dict]:
     """Finished and upcoming Six Nations events in a calendar year (Jan-Apr window)."""
-    d = _get(f"{BASE.format(lg=LEAGUE)}/scoreboard?dates={year}0101-{year}0430&limit=100")
+    d = _get(f"{BASE.format(lg=LEAGUE)}/scoreboard?dates={year}0101-{year}0430")
     return d.get("events", [])
 
 
