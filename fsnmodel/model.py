@@ -107,9 +107,12 @@ class PlayerModel:
         prior_s = 0.12 if pos != "BACK3" else 0.10
         prior_b = 0.20
         k = 2.0
+        n = len(window)                      # shrink by match count, not by decayed weight
         sw = w_all.sum()
-        ps = ((started * w_all).sum() + prior_s * k) / (sw + k)
-        pb = ((subon * w_all).sum() + prior_b * k) / (sw + k)
+        avg_s = (started * w_all).sum() / sw if sw else 0.0
+        avg_b = (subon * w_all).sum() / sw if sw else 0.0
+        ps = (n * avg_s + prior_s * k) / (n + k)
+        pb = (n * avg_b + prior_b * k) / (n + k)
         tot = ps + pb
         if tot > 0.98:
             ps, pb = ps / tot * 0.98, pb / tot * 0.98
@@ -182,8 +185,6 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             flags.append("few caps")
         if (asof - r["date"]).days > 300:
             flags.append("not seen for a while")
-        if not pm.tw_known:
-            flags.append("no turnover data")
         if avail < 1:
             flags.append("availability %.0f%%" % (avail * 100))
         per_round, comp_round, sup_round, es_r, pst_r = [], [], [], [], []
