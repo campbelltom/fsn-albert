@@ -28,18 +28,15 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m playwright install --with-deps chromium
-      # Finished matches are cached for good; only new pages are fetched each run.
+      # RFU data (data/rfu/*.json) is committed to the repo: the RFU site refuses GitHub's runners (HTTP 405), so it is
+      # scraped from a normal machine with scripts/scrape_rfu.py. ESPN results are cached here between runs.
       - name: Restore scraped data
         uses: actions/cache@v4
         with:
-          path: data
+          path: data/espn
           key: fsn-data-${{ github.run_id }}
           restore-keys: fsn-data-
-      - name: Scrape RFU match centres (primary)
-        run: python scripts/scrape_rfu.py --from 2023 --to 2027 --out data/rfu
-        continue-on-error: true
-      - name: ESPN fallback (fills matches/stats the RFU scrape missed)
+      - name: ESPN results (fills anything not in data/rfu)
         run: python scripts/scrape_espn.py --from 2023 --to 2027 --out data/espn
         continue-on-error: true
       - name: Run model

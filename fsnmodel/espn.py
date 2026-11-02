@@ -27,9 +27,24 @@ def _get(url: str) -> dict:
 
 
 def events(year: int) -> list[dict]:
-    """Finished and upcoming Six Nations events in a calendar year (Jan-Apr window)."""
-    d = _get(f"{BASE.format(lg=LEAGUE)}/scoreboard?dates={year}0101-{year}0430")
-    return d.get("events", [])
+    """Six Nations events for a year. Tries a few date-window formats; prints the exact response on errors."""
+    import urllib.error
+    last = None
+    for q in (f"dates={year}0201-{year}0320", f"dates={year}0125-{year}0331", f"dates={year}"):
+        url = f"{BASE.format(lg=LEAGUE)}/scoreboard?{q}"
+        try:
+            ev = _get(url).get("events", [])
+        except urllib.error.HTTPError as e:      # noqa: PERF203
+            body = e.read()[:200].decode("utf8", "replace") if hasattr(e, "read") else ""
+            print(f"ESPN {e.code} for {url}: {body}")
+            last = e
+            continue
+        print(f"ESPN {q}: {len(ev)} events")
+        if ev:
+            return ev
+    if last:
+        raise last
+    return []
 
 
 def parse_summary(summ: dict, ev: dict) -> dict | None:
