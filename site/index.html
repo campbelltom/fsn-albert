@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0c0f14">
+<title>Campbell FSN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#edeff5; --card:#ffffff; --card2:#f4f6fa; --ink:#11141c; --ink2:#5a6475; --line:#dde2ec;
+  --BACK3:#b7791f; --CEN:#d6334f; --FH:#7c3aed; --SH:#0e8a5f; --BR:#1f6fd6; --LOCK:#0f766e; --PROP:#9a3412; --HOOK:#be185d;
+  --on-pos:#ffffff; --warn:#b7791f; --bad:#d6334f; --good:#0e8a5f; --focus:#1f6fd6; --glass:rgba(255,255,255,.72);
+  --body:'Barlow',system-ui,sans-serif; --num:'Barlow Semi Condensed','Barlow',system-ui,sans-serif; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c0f14; --card:#151a22; --card2:#1c232d; --ink:#eaeef5; --ink2:#8c97a8; --line:#232b36;
+  --BACK3:#f5b544; --CEN:#ff6f8e; --FH:#a78bfa; --SH:#36d399; --BR:#4fa3ff; --LOCK:#2dd4bf; --PROP:#fb923c; --HOOK:#f472b6;
+  --on-pos:#0c0f14; --warn:#f5b544; --bad:#ff6f8e; --good:#36d399; --focus:#7aa7ff; --glass:rgba(21,26,34,.72); color-scheme:dark;}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.35 var(--body);-webkit-text-size-adjust:100%}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button,input,select{font:inherit;color:inherit} button{cursor:pointer}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding:0 12px}
+.p-BACK3{--p:var(--BACK3)}.p-CEN{--p:var(--CEN)}.p-FH{--p:var(--FH)}.p-SH{--p:var(--SH)}.p-BR{--p:var(--BR)}.p-LOCK{--p:var(--LOCK)}.p-PROP{--p:var(--PROP)}.p-HOOK{--p:var(--HOOK)}
+
+#lock{min-height:100svh;display:grid;place-items:center;padding:24px 16px}
+#lock form{width:100%;max-width:340px}
+#lock h1{font:700 2.3rem/.98 var(--num);letter-spacing:-.02em;margin:0 0 6px}
+#lock p{margin:0 0 18px;color:var(--ink2)}
+#lock input[type=password]{width:100%;padding:13px 14px;border:2px solid var(--ink);border-radius:12px;background:var(--card);font-size:16px}
+#lock .keep{display:flex;align-items:center;gap:8px;margin:12px 0 14px;color:var(--ink2)}
+#lock button[type=submit]{width:100%;padding:13px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:600}
+#lock .err{color:var(--bad);min-height:1.5em;margin-top:10px;font-weight:500}
+
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 8px) 0 8px}
+.bar1{display:flex;align-items:center;gap:8px}
+.bar1 h1{font:700 1.5rem/1 var(--num);letter-spacing:-.015em;margin:0;flex:1;white-space:nowrap}
+.bar1 h1 small{font:600 .8rem var(--num);color:var(--ink2)}
+.ic{width:38px;height:38px;border-radius:12px;border:0;background:var(--card);display:grid;place-items:center;font-size:1rem}
+.sub{color:var(--ink2);font-size:.8rem;margin:2px 0 8px}
+.search{width:100%;height:40px;padding:0 14px;border:0;border-radius:12px;background:var(--card);font-size:16px}
+.bar2{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.82rem;color:var(--ink2);flex-wrap:wrap}
+.bar2 .sp{flex:1}
+.seg{display:inline-flex;background:var(--card);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;border-radius:8px;padding:5px 11px;font:600 .85rem var(--num);color:var(--ink2)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+select.sel{height:34px;border:0;border-radius:10px;background:var(--card);padding:0 8px;font-size:14px}
+
+#list{display:flex;flex-direction:column;gap:4px;padding-bottom:96px}
+@media (min-width:820px){#list{display:grid;grid-template-columns:1fr 1fr;gap:8px}.item.open{grid-column:1/-1}}
+.item{background:var(--card);border-radius:14px;overflow:hidden;position:relative}
+.item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--p)}
+.row{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) 70px minmax(44px,auto);gap:6px;align-items:center;width:100%;padding:5px 8px 5px 12px;min-height:44px}
+.row:focus-visible{outline:3px solid var(--focus);outline-offset:-3px;border-radius:14px}
+.l1{display:flex;align-items:center;gap:5px;min-width:0}
+.nm{font:600 .95rem/1.15 var(--num);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2{display:flex;align-items:center;gap:6px;font:500 .8rem/1.2 var(--num);color:var(--ink2);margin-top:3px;white-space:nowrap;overflow:hidden}
+.l2 b{color:var(--ink);font-weight:600}
+.chip{font:700 .6rem/1 var(--num);padding:3px 4px;flex:none;border-radius:5px;background:var(--p);color:var(--on-pos);letter-spacing:.02em}
+.flag{font:600 .66rem/1 var(--body);padding:2px 5px;border-radius:5px;border:1px solid currentColor;flex:none;color:var(--warn)}
+.strip{display:flex;align-items:flex-end;gap:3px;height:22px}
+.strip i{flex:1;background:var(--p);border-radius:2px 2px 0 0;min-height:2px}
+.strip i.sel{outline:2px solid var(--ink);outline-offset:1px}
+.tot{text-align:right;line-height:1}
+.tot .a{font:700 1.2rem/1 var(--num);font-variant-numeric:tabular-nums}
+.tot .b{font:500 .62rem/1 var(--num);color:var(--ink2);margin-top:3px}
+.dwrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .2s}
+.item.open .dwrap{grid-template-rows:1fr}
+.dwrap>div{overflow:hidden}
+.detail{padding:4px 14px 14px;display:grid;gap:14px 28px;grid-template-columns:1fr}
+@media (min-width:820px){.detail{grid-template-columns:1fr 1fr}}
+.detail h3{font:600 .8rem var(--body);margin:0 0 6px;color:var(--ink2)}
+.gws{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.gws>div{background:var(--card2);border-radius:9px;padding:5px 2px;text-align:center}
+.gws .g{font:500 .68rem var(--num);color:var(--ink2)} .gws .e{font:700 1.05rem var(--num)} .gws .o{font:500 .68rem var(--num);color:var(--ink2);white-space:nowrap}
+.comp{display:grid;grid-template-columns:90px 1fr 40px;gap:4px 8px;align-items:center;font-size:.82rem}
+.comp .bar{height:8px;background:var(--card2);border-radius:4px;position:relative;overflow:hidden}
+.comp .bar span{position:absolute;left:0;top:0;bottom:0;background:var(--p);border-radius:4px}
+.comp .bar span.neg{background:var(--bad)}
+.comp .t{text-align:right;font:600 .85rem var(--num);font-variant-numeric:tabular-nums}
+.info{color:var(--ink2);font-size:.8rem;margin-top:8px}
+.acts{display:flex;gap:6px;margin-top:8px}
+.btn{border:0;border-radius:10px;padding:8px 12px;font:600 .82rem var(--num);background:var(--card2)}
+.btn.on{background:var(--ink);color:var(--bg)}
+.btn.primary{background:var(--ink);color:var(--bg)}
+
+.panel{background:var(--card);border-radius:14px;padding:12px;margin-bottom:8px}
+.sqctl{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:4px 0 10px}
+.sqctl label{display:flex;flex-direction:column;gap:3px;font:600 .75rem var(--body);color:var(--ink2)}
+.sqctl select,.sqctl input{height:40px;border:0;border-radius:12px;background:var(--card);padding:0 10px;font-size:16px;width:130px}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sum b{display:block;font:700 1.35rem/1 var(--num)} .sum span{display:block;font-size:.72rem;color:var(--ink2);margin-top:3px}
+.pitch{display:grid;gap:6px}
+.line{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.tile{position:relative;width:calc(33% - 6px);max-width:118px;min-width:92px;background:var(--card2);border-radius:12px;padding:6px 6px 6px 9px;text-align:left}
+.tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:12px 0 0 12px;background:var(--p)}
+.tile .n{font:600 .85rem var(--num);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .m{font:500 .7rem var(--num);color:var(--ink2)}
+.tile .v{font:700 1rem var(--num)}
+.tile .cap{position:absolute;top:3px;right:5px;font:700 .65rem var(--num);background:var(--ink);color:var(--bg);border-radius:6px;padding:1px 5px}
+.tile .cap.s{background:var(--good);color:#fff}
+.lbl{font:600 .72rem var(--body);color:var(--ink2);margin:6px 0 2px;text-transform:uppercase;letter-spacing:.05em}
+
+.fx{background:var(--card);border-radius:14px;margin-bottom:8px;overflow:hidden}
+.fx h3{margin:0;padding:10px 12px 4px;font:700 1rem var(--num)}
+.fx .m{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font:600 .95rem var(--num)}
+.fx .m .r{text-align:right} .fx .m small{display:block;font:500 .72rem var(--body);color:var(--ink2)}
+.pbar{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:4px;width:90px}.pbar i{display:block;height:100%;background:var(--ink)}
+
+footer{padding:6px 2px 110px;color:var(--ink2);font-size:.78rem;max-width:66ch}
+footer p{margin:0 0 6px}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);pointer-events:none}
+.dock .in{pointer-events:auto;max-width:520px;margin:0 auto;display:flex;gap:6px;padding:6px;border-radius:20px;background:var(--glass);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border:1px solid color-mix(in srgb,var(--ink) 10%,transparent);box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.dock button{flex:1;border:0;background:none;border-radius:14px;height:42px;font:700 .9rem var(--num);color:var(--ink2)}
+.dock button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pchips{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.pchips button{border:0;border-radius:10px;padding:6px 9px;background:var(--card);font:700 .78rem var(--num);color:var(--ink2)}
+.pchips button[aria-pressed=true]{background:var(--p,var(--ink));color:var(--on-pos)}
+.pchips button[data-p=ALL][aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.empty{padding:30px 6px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<section id="lock" hidden>
+  <form id="lockform" autocomplete="off">
+    <h1>Campbell<br>FSN</h1>
+    <p>Fantasy Six Nations projections. Enter the password.</p>
+    <input id="pw" type="password" aria-label="Password" autocomplete="current-password" autofocus>
+    <label class="keep"><input id="keep" type="checkbox" checked> Remember on this device</label>
+    <button type="submit">Unlock</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+</section>
+
+<main id="app" hidden>
+  <div class="top"><div class="wrap">
+    <div class="bar1"><h1>Campbell FSN <small id="seasonTag"></small></h1><button class="ic" id="themeBtn" aria-label="Toggle theme">◐</button></div>
+    <div class="sub" id="sub"></div>
+    <div id="playersBar">
+      <input class="search" id="q" type="search" placeholder="Search player or team" aria-label="Search">
+      <div class="pchips" id="pchips"></div>
+      <div class="bar2">
+        <span>Show</span><span class="seg" id="scope"></span>
+        <span class="sp"></span>
+        <select class="sel" id="teamSel" aria-label="Nation"></select>
+        <select class="sel" id="sortSel" aria-label="Sort"><option value="pts">Points</option><option value="val">Points per ★</option><option value="price">Price</option></select>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="wrap">
+    <section id="tabPlayers"><div id="list"></div></section>
+    <section id="tabSquad" hidden>
+      <div class="sqctl">
+        <label>Horizon<select id="sqScope"></select></label>
+        <label>Budget ★<input id="sqBudget" type="number" min="100" max="400" step="1"></label>
+        <button class="btn primary" id="sqGo" style="height:40px">Pick best squad</button>
+        <button class="btn" id="sqClear" style="height:40px">Clear keeps/bans</button>
+      </div>
+      <div class="panel" id="sqSum"></div>
+      <div id="sqView"><div class="empty">Choose a horizon and pick the best squad. Open a player on the Players tab to keep or ban him first.</div></div>
+      <div class="panel" id="sqLists" hidden></div>
+    </section>
+    <section id="tabFixtures" hidden></section>
+    <footer id="foot"></footer>
+  </div>
+
+  <div class="dock"><div class="in">
+    <button data-tab="Players" aria-pressed="true">Players</button>
+    <button data-tab="Squad" aria-pressed="false">Squad</button>
+    <button data-tab="Fixtures" aria-pressed="false">Fixtures</button>
+  </div></div>
+</main>
+
+<script src="squad.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
+const POS_LABEL = {BACK3:'Back 3',CEN:'Centre',FH:'Fly-half',SH:'Scrum-half',BR:'Back row',LOCK:'Lock',PROP:'Prop',HOOK:'Hooker'};
+const POS_SHORT = {BACK3:'B3',CEN:'C',FH:'FH',SH:'SH',BR:'BR',LOCK:'L',PROP:'P',HOOK:'H'};
+const LINES = [['BACK3','CEN','FH','SH'],['BR','LOCK','PROP','HOOK']];
+const COMP_LABEL = {tries:'Tries',assists:'Try assists',kicking:'Kicking',carrying:'Carries & breaks',tackles:'Tackles',steals:'Turnovers & steals',discipline:'Discipline',potm:'Player of the match',team:'Team result'};
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+let D = null, state = { pos:'ALL', team:'ALL', scope:'next', sort:'pts', q:'', open:null };
+let keep = new Set(JSON.parse(store.get('fsn.keep')||'[]')), ban = new Set(JSON.parse(store.get('fsn.ban')||'[]'));
+const saveLists = () => { store.set('fsn.keep', JSON.stringify([...keep])); store.set('fsn.ban', JSON.stringify([...ban])); };
+
+async function decrypt(pkg, password){
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name:'PBKDF2', salt:b64(pkg.salt), iterations:pkg.iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const buf = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64(pkg.iv)}, key, b64(pkg.ct));
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+async function fetchJSON(url){ const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
+
+async function boot(){
+  try { start(await fetchJSON('data/predictions.json')); return; } catch(e) {}      // local/dev: unencrypted file
+  $('#lock').hidden = false;
+  const saved = store.get('fsn.pw');
+  if (saved) { try { start(await decrypt(await fetchJSON('data/predictions.enc.json'), saved)); return; } catch(e) { store.del('fsn.pw'); } }
+  $('#lockform').addEventListener('submit', async ev => {
+    ev.preventDefault(); $('#err').textContent = '';
+    const pw = $('#pw').value;
+    try { const data = await decrypt(await fetchJSON('data/predictions.enc.json'), pw); if ($('#keep').checked) store.set('fsn.pw', pw); start(data); }
+    catch(e) { $('#err').textContent = 'Wrong password, or the data is not published yet.'; }
+  });
+}
+
+/* ---------- helpers ---------- */
+const fmt = (x, d=1) => (Math.round(x*10**d)/10**d).toFixed(d);
+const rIdx = () => D.rounds.map((_, i) => i);
+function scopeRounds(s){ const n = D.rounds.length; if (s === 'next') return [0]; if (s === 'all') return rIdx(); if (s === 'first3') return [0,1,2].filter(i => i < n); return [+s]; }
+const total = (p, rs) => rs.reduce((a, r) => a + p.exp[r], 0);
+
+function start(data){
+  D = data;
+  $('#lock').hidden = true; $('#app').hidden = false;
+  $('#seasonTag').textContent = D.season;
+  const when = new Date(D.generated);
+  $('#sub').textContent = `Updated ${when.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${D.history.matches} matches of history (${D.history.seasons[0]}–${D.history.seasons.slice(-1)[0]}) · scoring: ${D.rules.version}`;
+  // scope controls
+  const sc = [['next','R1'],['first3','R1–3'],['all','All 5']];
+  $('#scope').innerHTML = sc.map(([k,l]) => `<button data-s="${k}" aria-pressed="${k===state.scope}">${l}</button>`).join('');
+  $('#scope').onclick = e => { const b = e.target.closest('button'); if(!b) return; state.scope = b.dataset.s; [...$('#scope').children].forEach(x => x.setAttribute('aria-pressed', x===b)); renderList(); };
+  $('#pchips').innerHTML = ['ALL', ...Object.keys(POS_LABEL)].map(p => `<button data-p="${p}" class="p-${p}" aria-pressed="${p==='ALL'}">${p==='ALL'?'All':POS_LABEL[p]}</button>`).join('');
+  $('#pchips').onclick = e => { const b = e.target.closest('button'); if(!b) return; state.pos = b.dataset.p; [...$('#pchips').children].forEach(x => x.setAttribute('aria-pressed', x===b)); renderList(); };
+  const teams = [...new Set(D.players.map(p => p.team))].sort();
+  $('#teamSel').innerHTML = '<option value="ALL">All nations</option>' + teams.map(t => `<option>${t}</option>`).join('');
+  $('#teamSel').onchange = e => { state.team = e.target.value; renderList(); };
+  $('#sortSel').onchange = e => { state.sort = e.target.value; renderList(); };
+  $('#q').oninput = e => { state.q = e.target.value.trim().toLowerCase(); renderList(); };
+  $('#themeBtn').onclick = () => { const r = document.documentElement; const dark = r.getAttribute('data-theme') ? r.getAttribute('data-theme')==='dark' : matchMedia('(prefers-color-scheme:dark)').matches; r.setAttribute('data-theme', dark?'light':'dark'); };
+  document.querySelector('.dock').onclick = e => { const b = e.target.closest('button'); if(!b) return; showTab(b.dataset.tab); };
+  // squad controls
+  $('#sqScope').innerHTML = D.rounds.map((r,i) => `<option value="${i}">Round ${r.round}</option>`).join('') + '<option value="first3">Rounds 1–3</option><option value="all" selected>All rounds</option>';
+  $('#sqBudget').value = D.rules.squad.budget;
+  $('#sqGo').onclick = runSquad;
+  $('#sqClear').onclick = () => { keep.clear(); ban.clear(); saveLists(); renderList(); renderLists(); };
+  renderFixtures(); renderFoot(); renderList(); renderLists();
+}
+function showTab(t){
+  for (const n of ['Players','Squad','Fixtures']) $('#tab'+n).hidden = n !== t;
+  $('#playersBar').hidden = t !== 'Players';
+  document.querySelectorAll('.dock button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === t));
+  window.scrollTo(0, 0);
+}
+
+/* ---------- players ---------- */
+function renderList(){
+  const rs = scopeRounds(state.scope);
+  let L = D.players.filter(p => (state.pos==='ALL'||p.pos===state.pos) && (state.team==='ALL'||p.team===state.team) &&
+    (!state.q || (p.name+' '+p.team).toLowerCase().includes(state.q)));
+  const key = { pts: p => total(p, rs), val: p => total(p, rs) / p.price, price: p => p.price }[state.sort];
+  L = L.sort((a,b) => key(b) - key(a)).slice(0, 150);
+  const maxR = Math.max(1, ...D.players.flatMap(p => p.exp));
+  $('#list').innerHTML = L.map(p => {
+    const t = total(p, rs);
+    const bars = p.exp.map((x,i) => `<i class="${rs.includes(i)?'sel':''}" style="height:${Math.max(2, x/maxR*100)}%"></i>`).join('');
+    const fl = p.flags.slice(0,2).map(f => `<span class="flag">${f}</span>`).join('');
+    const tag = keep.has(p.id) ? ' ✓' : ban.has(p.id) ? ' ✕' : '';
+    return `<article class="item p-${p.pos} ${state.open===p.id?'open':''}" data-id="${p.id}">
+      <button class="row" aria-expanded="${state.open===p.id}">
+        <span><span class="l1"><span class="chip">${POS_SHORT[p.pos]}</span><span class="nm">${p.name}${tag}</span>${fl}</span>
+          <span class="l2"><b>${p.team}</b><span>·</span><span>${p.price}★${p.priceEst?'*':''}</span><span>·</span><span>${Math.round(p.pStart*100)}% start</span></span></span>
+        <span class="strip">${bars}</span>
+        <span class="tot"><div class="a">${fmt(t)}</div><div class="b">${fmt(t/p.price,2)}/★</div></span>
+      </button>
+      <div class="dwrap"><div>${state.open===p.id ? detail(p, rs) : ''}</div></div></article>`;
+  }).join('') || '<div class="empty">No players match.</div>';
+}
+function detail(p, rs){
+  const comp = {}; rs.forEach(r => { for (const k in p.comp[r]) comp[k] = (comp[k]||0) + p.comp[r][k]; });
+  const mx = Math.max(1, ...Object.values(comp).map(Math.abs));
+  const rows = Object.keys(COMP_LABEL).map(k => { const v = comp[k]||0; return `<span>${COMP_LABEL[k]}</span><span class="bar"><span class="${v<0?'neg':''}" style="width:${Math.abs(v)/mx*100}%"></span></span><span class="t">${fmt(v)}</span>`; }).join('');
+  const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase() : '–'}</div></div>`; }).join('');
+  return `<div class="detail">
+    <div><h3>Round by round</h3><div class="gws">${gws}</div>
+      <div class="info">${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
+      <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep in squad'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
+    <div><h3>Where the points come from</h3><div class="comp">${rows}</div></div></div>`;
+}
+$('#list').addEventListener('click', e => {
+  const art = e.target.closest('.item'); if (!art) return;
+  const id = art.dataset.id;
+  const act = e.target.closest('[data-act]');
+  if (act) { const a = act.dataset.act; const s = a==='keep'?keep:ban, o = a==='keep'?ban:keep; if (s.has(id)) s.delete(id); else { s.add(id); o.delete(id); } saveLists(); renderList(); renderLists(); return; }
+  if (e.target.closest('.row')) { state.open = state.open === id ? null : id; renderList(); }
+});
+
+/* ---------- squad ---------- */
+function renderLists(){
+  const el = $('#sqLists'); const byId = Object.fromEntries(D.players.map(p => [p.id, p]));
+  if (!keep.size && !ban.size) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="lbl">Kept</div>${[...keep].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}<div class="lbl">Banned</div>${[...ban].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}`;
+}
+function runSquad(){
+  const s = $('#sqScope').value; const rs = scopeRounds(s === 'next' ? '0' : s);
+  const budget = +$('#sqBudget').value || D.rules.squad.budget;
+  $('#sqGo').disabled = true; $('#sqGo').textContent = 'Thinking…';
+  setTimeout(() => {
+    const t0 = performance.now();
+    const res = SQUAD.optimise(D.players, { rules: D.rules, rounds: rs, budget, keep: [...keep], ban: [...ban], restarts: 10, iters: 40000 });
+    $('#sqGo').disabled = false; $('#sqGo').textContent = 'Pick best squad';
+    if (!res) { $('#sqView').innerHTML = '<div class="empty">No legal squad found: loosen the keeps or raise the budget.</div>'; $('#sqSum').innerHTML = ''; return; }
+    drawSquad(res, rs, Math.round(performance.now()-t0));
+  }, 30);
+}
+function drawSquad(res, rs, ms){
+  const capCount = {}, subCount = {};
+  res.perRound.forEach(r => { capCount[r.captain] = (capCount[r.captain]||0)+1; if (r.supersub) subCount[r.supersub] = (subCount[r.supersub]||0)+1; });
+  $('#sqSum').innerHTML = `<div class="sum"><div><b>${fmt(res.points)}</b><span>projected points (${rs.length} round${rs.length>1?'s':''}, captain + supersub)</span></div><div><b>${res.cost}★</b><span>of ${res.budget}★</span></div><div><b>${fmt(res.points/rs.length)}</b><span>per round</span></div></div>`;
+  const tile = (p, extra='') => { const t = total(p, rs); return `<div class="tile p-${p.pos}">${extra}<div class="n">${p.name}</div><div class="m">${p.team.slice(0,3).toUpperCase()} · ${p.price}★</div><div class="v">${fmt(t)}</div></div>`; };
+  const cap = Object.keys(capCount).sort((a,b) => capCount[b]-capCount[a])[0], sub = Object.keys(subCount).sort((a,b) => subCount[b]-subCount[a])[0];
+  const lines = [['BACK3'],['CEN'],['FH','SH'],['BR'],['LOCK'],['PROP','HOOK']].map(g => {
+    const ps = res.xv.filter(p => g.includes(p.pos)).sort((a,b) => g.indexOf(a.pos)-g.indexOf(b.pos));
+    return `<div class="line">${ps.map(p => tile(p, p.id===cap ? '<span class="cap">C</span>' : '')).join('')}</div>`;
+  }).join('');
+  $('#sqView').innerHTML = `<div class="pitch">${lines}</div><div class="lbl">Bench</div><div class="line">${res.bench.map(p => tile(p, p.id===sub ? '<span class="cap s">3×</span>' : '')).join('')}</div>
+    <div class="info">Found in ${ms} ms. C = most-used captain, 3× = most-used supersub across the chosen rounds. ${D.players.some(p => p.priceEst) ? 'Prices are estimates (*) until official prices are added.' : ''}</div>`;
+}
+
+/* ---------- fixtures & footer ---------- */
+function renderFixtures(){
+  $('#tabFixtures').innerHTML = D.rounds.map(r => `<div class="fx"><h3>Round ${r.round}</h3>${r.matches.map(m => `
+    <div class="m"><div>${m.home}<small>exp. ${fmt(m.xHome,0)} pts</small></div>
+    <div><div class="pbar" title="home win probability"><i style="width:${m.pHome*100}%"></i></div><small style="text-align:center">${Math.round(m.pHome*100)}% / ${Math.round((1-m.pHome)*100)}%</small></div>
+    <div class="r">${m.away}<small>exp. ${fmt(m.xAway,0)} pts</small></div></div>`).join('')}</div>`).join('');
+}
+function renderFoot(){
+  const P = D.rules.points;
+  $('#foot').innerHTML = `<p>Scoring used: try ${P.try_forward} (forward) / ${P.try_back} (back), assist ${P.assist}, conversion ${P.conversion}, penalty ${P.penalty}, drop goal ${P.drop_goal}, defender beaten ${P.defender_beaten}, ${P.metres_per_point} m carried = 1, tackle ${P.tackle}, turnover won ${P.breakdown_steal}, lineout steal ${P.lineout_steal}, penalty conceded ${P.penalty_conceded}, yellow ${P.yellow}, red ${P.red}, player of the match ${P.potm}. Captain ×${D.rules.captain_multiplier}; supersub ×${D.rules.supersub.on} if he comes on, ×${D.rules.supersub.off} if not.</p>
+  <p>Squad: ${D.rules.squad.budget}★, ${Object.values(D.rules.squad.xv).reduce((a,b)=>a+b,0)} starters + ${D.rules.squad.bench} bench, max ${D.rules.squad.max_per_nation} per nation. Player of the match is a heuristic; 50:22 kicks are not in the source data. Squads are not named until January, so every player capped in the last year is shown.</p>
+  ${(D.notes||[]).map(n => `<p>${n}</p>`).join('')}`;
+}
+boot();
+</script>
+</body>
+</html>

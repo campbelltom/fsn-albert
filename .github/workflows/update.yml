@@ -1,0 +1,68 @@
+name: Update projections
+
+on:
+  schedule:
+    - cron: "40 */3 * * *"        # every 3 hours; match days can be tightened later
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["fsnmodel/**", "scripts/**", "config/**", "site/**", ".github/workflows/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      # Finished matches are cached for good; only new pages are fetched each run.
+      - name: Restore scraped data
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: fsn-data-${{ github.run_id }}
+          restore-keys: fsn-data-
+      - name: Scrape RFU match centres (primary)
+        run: python scripts/scrape_rfu.py --from 2023 --to 2027 --out data/rfu
+        continue-on-error: true
+      - name: ESPN fallback (fills matches/stats the RFU scrape missed)
+        run: python scripts/scrape_espn.py --from 2023 --to 2027 --out data/espn
+        continue-on-error: true
+      - name: Run model
+        env:
+          FSN_SITE_PASSWORD: ${{ secrets.FSN_SITE_PASSWORD }}
+        run: |
+          set -o pipefail
+          python scripts/run_production.py --out _site/data 2>&1 | tee model.log || {
+            echo "::error title=Model failed::$(tail -n 25 model.log | tr '\n' '|' | cut -c1-3000)"
+            exit 1
+          }
+      - name: Assemble site
+        run: cp site/index.html site/squad.js _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

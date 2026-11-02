@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+_site/
+site/data/
+data/rfu/
+data/espn/

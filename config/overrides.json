@@ -1,0 +1,6 @@
+{
+  "_help": "exclude: list of Opta player ids to drop (retired/injured). players: id -> {availability: 0..1, pos: BACK3|CEN|FH|SH|BR|LOCK|PROP|HOOK, team: name}. include: extra ids to keep even if not recently capped.",
+  "exclude": [],
+  "include": [],
+  "players": {}
+}

@@ -1,0 +1,21 @@
+{
+  "season": 2027,
+  "note": "Announced 9 March 2026. Round 4 Saturday fixtures were listed as 6 February in the source; 6 March used.",
+  "fixtures": [
+    {"round":1,"date":"2027-02-05","home":"Ireland","away":"England"},
+    {"round":1,"date":"2027-02-06","home":"Scotland","away":"Italy"},
+    {"round":1,"date":"2027-02-06","home":"France","away":"Wales"},
+    {"round":2,"date":"2027-02-13","home":"Italy","away":"Ireland"},
+    {"round":2,"date":"2027-02-13","home":"Scotland","away":"Wales"},
+    {"round":2,"date":"2027-02-14","home":"England","away":"France"},
+    {"round":3,"date":"2027-02-20","home":"Wales","away":"Ireland"},
+    {"round":3,"date":"2027-02-20","home":"England","away":"Italy"},
+    {"round":3,"date":"2027-02-21","home":"France","away":"Scotland"},
+    {"round":4,"date":"2027-03-05","home":"Scotland","away":"Ireland"},
+    {"round":4,"date":"2027-03-06","home":"Italy","away":"France"},
+    {"round":4,"date":"2027-03-06","home":"Wales","away":"England"},
+    {"round":5,"date":"2027-03-13","home":"Italy","away":"Wales"},
+    {"round":5,"date":"2027-03-13","home":"England","away":"Scotland"},
+    {"round":5,"date":"2027-03-13","home":"Ireland","away":"France"}
+  ]
+}
