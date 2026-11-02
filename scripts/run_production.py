@@ -20,6 +20,24 @@ from fsnmodel.export import encrypt_json  # noqa: E402
 from fsnmodel.model import project  # noqa: E402
 
 
+def summarise(hist, res) -> None:
+    """Public-stat sanity summary for the Actions log."""
+    import numpy as np
+    P = res["players"]
+    print("history rows", len(hist), "matches", hist["match_key"].nunique(), "by source", hist.drop_duplicates("match_key")["source"].value_counts().to_dict())
+    tm = hist.groupby("match_key").agg(tk=("tackles", "sum"), mt=("missed", "sum"), tr=("tries", "sum"), mt_m=("metres", "sum"), pc=("pc", "sum"))
+    print("per match totals (both teams) mean:", tm.mean().round(1).to_dict())
+    print("minutes: starters mean %.1f, subs-with-minutes mean %.1f" % (hist[hist.started]["minutes"].mean(), hist[(~hist.started) & (hist.minutes > 0)]["minutes"].mean()))
+    print("shirt missing:", int(hist["shirt"].isna().sum()), "| tw available:", int(hist["tw"].notna().sum()))
+    by = {}
+    for p in P:
+        by.setdefault(p["pos"], []).append(np.mean(p["exp"]))
+    print("players", len(P), {k: (len(v), round(float(np.mean(v)), 1)) for k, v in sorted(by.items())})
+    for p in P[:12]:
+        print("  %-22s %-9s %-5s %3d* start %.2f sub %.2f  exp/rd %.1f  %s" % (p["name"][:22], p["team"], p["pos"], p["price"], p["pStart"], p["pSub"], float(np.mean(p["exp"])), p["flags"]))
+    print("flagged few caps:", sum("few caps" in p["flags"] for p in P), "| nan:", sum(1 for p in P if any(x != x for x in p["exp"])))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
@@ -56,6 +74,7 @@ def main() -> None:
     else:
         notes.append("Prices are estimates (official prices are published when the game opens): add config/prices.csv (id,price) to use them.")
     seasons = sorted(hist["season"].unique().tolist())
+    summarise(hist, res)
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "season": fx["season"], "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
