@@ -41,7 +41,7 @@ def rules() -> dict:
 # ---- roles: what a player actually does in a match is set by the shirt he wears, not by his listed position
 ROLE_START = {1: "PROP", 2: "HOOK", 3: "PROP", 4: "LOCK", 5: "LOCK", 6: "FLK", 7: "FLK", 8: "N8", 9: "SH", 10: "FH", 11: "WING", 12: "C12", 13: "C13", 14: "WING", 15: "FB"}
 ROLE_BENCH = {16: "HOOK", 17: "PROP", 18: "PROP", 19: "LOCK", 20: "FLK", 21: "SH", 22: "FH"}      # 23 is a utility back: his own usual role
-ROLE_GROUP = {"PROP": "PROP", "HOOK": "HOOK", "LOCK": "LOCK", "FLK": "BR", "N8": "BR", "SH": "SH", "FH": "FH", "C12": "CEN", "C13": "CEN", "WING": "BACK3", "FB": "BACK3"}
+ROLE_GROUP = {"FL6": "BR", "FL7": "BR", "PROP": "PROP", "HOOK": "HOOK", "LOCK": "LOCK", "FLK": "BR", "N8": "BR", "SH": "SH", "FH": "FH", "C12": "CEN", "C13": "CEN", "WING": "BACK3", "FB": "BACK3"}
 GROUP_DEFAULT_ROLE = {"PROP": "PROP", "HOOK": "HOOK", "LOCK": "LOCK", "BR": "FLK", "SH": "SH", "FH": "FH", "CEN": "C12", "BACK3": "WING"}
 
 
@@ -53,6 +53,8 @@ def role_of(shirt, detail: str = "shirt"):
         return None
     if detail == "group":
         return SHIRT_POS.get(sh) if sh <= 15 else BENCH_POS.get(sh)
+    if detail == "fine" and sh in (6, 7):          # blindside and openside flankers separately
+        return "FL6" if sh == 6 else "FL7"
     return ROLE_START.get(sh) if sh <= 15 else ROLE_BENCH.get(sh)
 
 

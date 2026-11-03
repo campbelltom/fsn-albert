@@ -63,6 +63,9 @@ jobs:
       - name: Backtest and snapshot evaluation (public stats only)
         run: python scripts/backtest.py --competition all --rules config/rules_nc.json
         continue-on-error: true
+      - name: Starters by shirt (per-80 profile)
+        run: python scripts/role_table.py --rules config/rules_nc.json
+        continue-on-error: true
       - name: Compare role models by backtest (not on the schedule)
         if: github.event_name != 'schedule'
         run: python scripts/tune.py --set roles --rules config/rules_nc.json

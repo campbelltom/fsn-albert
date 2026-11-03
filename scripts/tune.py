@@ -19,6 +19,7 @@ from fsnmodel.evaluate import compare, walk_forward  # noqa: E402
 
 ROLE_VARIANTS = [
     ("roles by shirt + team baselines (new)", {}),
+    ("as above, with 6 and 7 as separate roles", {"role_detail": "fine"}),
     ("fantasy positions only, no team baselines (old)", {"role_detail": "group", "k_team": 1e9}),
     ("fantasy positions + team baselines", {"role_detail": "group"}),
     ("roles by shirt, no team baselines", {"k_team": 1e9}),
