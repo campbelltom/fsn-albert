@@ -190,6 +190,7 @@ const money = v => (window.D && D.rules.squad.price_unit === 'M') ? Number(v).to
 const unit = () => (D.rules.squad.price_unit === 'M' ? 'M' : '★');
 const POS_SHORT = {BACK3:'B3',CEN:'C',FH:'FH',SH:'SH',BR:'BR',LOCK:'L',PROP:'P',HOOK:'H'};
 const LINES = [['BACK3','CEN','FH','SH'],['BR','LOCK','PROP','HOOK']];
+const ROLE_LABEL = {PROP:'Prop',HOOK:'Hooker',LOCK:'Lock',FLK:'Flanker',N8:'No.8',BR:'Loose fwd',SH:'Scrum-half',FH:'Fly-half',C12:'Inside centre',C13:'Outside centre',CEN:'Centre',WING:'Wing',FB:'Full-back',BACK3:'Back 3'};
 const COMP_LABEL = {tries:'Tries',assists:'Try assists',kicking:'Kicking',carrying:'Carries & breaks',tackles:'Tackles',steals:'Turnovers & steals',discipline:'Discipline',potm:'Player of the match',team:'Team result'};
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 window.D = null; let state = { pos:'ALL', team:'ALL', scope:'next', sort:'pts', q:'', open:null };
@@ -271,7 +272,7 @@ function renderList(){
     const t = total(p, rs);
     const bars = p.exp.map((x,i) => `<i class="${rs.includes(i)?'sel':''}" style="height:${Math.max(2, x/maxR*100)}%"></i>`).join('');
     const f0 = p.fx[rs[0]], LN = {S:'Starting',B:'Bench',X:'Not in 23'};
-    const fl = (f0 && f0.ln ? `<span class="flag ln-${f0.ln}">${LN[f0.ln]}</span>` : '') + p.flags.slice(0,1).map(f => `<span class="flag">${f}</span>`).join('');
+    const fl = (f0 && f0.ln ? `<span class="flag ln-${f0.ln}">${LN[f0.ln]}${f0.rl ? ' · ' + (ROLE_LABEL[f0.rl] || f0.rl) : ''}</span>` : '') + p.flags.slice(0,1).map(f => `<span class="flag">${f}</span>`).join('');
     const tag = keep.has(p.id) ? ' ✓' : ban.has(p.id) ? ' ✕' : '';
     return `<article class="item p-${p.pos} ${state.open===p.id?'open':''}" data-id="${p.id}">
       <button class="row" aria-expanded="${state.open===p.id}">
@@ -287,10 +288,10 @@ function detail(p, rs){
   const comp = {}; rs.forEach(r => { for (const k in p.comp[r]) comp[k] = (comp[k]||0) + p.comp[r][k]; });
   const mx = Math.max(1, ...Object.values(comp).map(Math.abs));
   const rows = Object.keys(COMP_LABEL).map(k => { const v = comp[k]||0; return `<span>${COMP_LABEL[k]}</span><span class="bar"><span class="${v<0?'neg':''}" style="width:${Math.abs(v)/mx*100}%"></span></span><span class="t">${fmt(v)}</span>`; }).join('');
-  const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase()+(f.ln?' · '+f.ln:'') : '–'}</div></div>`; }).join('');
+  const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase()+(f.ln?' · '+f.ln+(f.rl?' '+f.rl:''):'') : '–'}</div></div>`; }).join('');
   return `<div class="detail">
     <div><h3>Round by round</h3><div class="gws">${gws}</div>
-      <div class="info">${p.own != null ? p.own + '% of managers own him' + (p.poolPts != null ? ' · ' + p.poolPts + ' game points so far' : '') + '. ' : ''}${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
+      <div class="info">${p.roles && p.roles.length > 1 ? 'Plays ' + p.roles.map(r => (ROLE_LABEL[r[0]] || r[0]) + ' ' + Math.round(r[1]*100) + '%').join(', ') + '. ' : ''}${p.own != null ? p.own + '% of managers own him' + (p.poolPts != null ? ' · ' + p.poolPts + ' game points so far' : '') + '. ' : ''}${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
       <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep in squad'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
     <div><h3>Where the points come from</h3><div class="comp">${rows}</div></div></div>`;
 }

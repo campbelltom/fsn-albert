@@ -30,6 +30,12 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
   (project each round from earlier matches only) and compares frozen snapshots with actual points; results appear in the Actions run summary.
 - `scripts/scrape_espn.py --discover` prints every ESPN rugby league id; add more (Rugby Championship, autumn series) to `config/espn_leagues.json` for more history.
 
+## Roles, not just positions
+A player's points depend on the shirt he wears: a fly-half at full-back, a wing at centre. Rates per 80 minutes are built in three layers: a global baseline per role
+(11 roles from shirt numbers: prop, hooker, lock, flanker, no.8, scrum-half, fly-half, inside/outside centre, wing, full-back), this team's baseline in that role (team style),
+and a per-player multiplier (his edge over that baseline, shrunk towards 1). With a named lineup the shirt decides the role; otherwise the player's recent mix of roles is used.
+His listed fantasy position (for squad slots) does not change. `scripts/tune.py --set roles` compares this with the old position-only model.
+
 ## Named lineups
 Rugby teams are named ~48h before kick-off, so starters are not predicted once a team is named: `scripts/fetch_lineups.py` reads ESPN rosters (and `config/lineups.json`
 can name a team by hand, surnames are enough). Starters (1-15) get full minutes from their own history, bench players get a probability of coming on and minutes by shirt

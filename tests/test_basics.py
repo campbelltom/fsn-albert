@@ -73,6 +73,30 @@ def test_lineups_and_nc_scoring():
     assert any(p["team"] == "Argentina" and p["exp"][0] > 0 for p in res2["players"])
 
 
+def test_position_flexibility():
+    """A fly-half named at full-back is projected in the full-back role (the shirt decides), with his own multiplier on that baseline."""
+    from make_fixture import make
+    from fsnmodel.common import load_json
+    from fsnmodel.data import assign_positions, load_matches
+    from fsnmodel.lineups import build_lineup_map, load_all
+    from fsnmodel.model import project
+    import pandas as pd
+    d = Path(tempfile.mkdtemp())
+    make(d / "rfu")
+    (d / "lineups").mkdir()
+    swap = {10: 15, 15: 10}
+    pl = [{"id": str(2000 + swap.get(sh, sh)), "name": f"Ire{sh}", "shirt": sh} for sh in range(1, 24)]     # 2010 (the FH) wears 15, 2015 wears 10
+    (d / "lineups" / "ire.json").write_text(json.dumps({"round": 1, "team": "Ireland", "players": pl}))
+    hist = load_matches(d / "rfu")
+    fx = load_json(ROOT / "config" / "fixtures_2027.json")["fixtures"]
+    lm, _ = build_lineup_map(load_all([d / "lineups"]), hist, fx)
+    res = project(hist, assign_positions(hist), fx, rules(), pd.Timestamp("2026-06-01"), lineup_map=lm)
+    by = {p["id"]: p for p in res["players"]}
+    assert by["2010"]["fx"][0]["rl"] == "FB" and by["2015"]["fx"][0]["rl"] == "FH", (by["2010"]["fx"][0], by["2015"]["fx"][0])
+    assert by["2010"]["pos"] == "FH"                          # his listed position does not change
+    assert all(len(p["roles"]) >= 1 for p in res["players"])
+
+
 def test_backtest_runs():
     import subprocess
     from make_fixture import make
@@ -84,5 +108,5 @@ def test_backtest_runs():
 
 
 if __name__ == "__main__":
-    test_lineups_and_nc_scoring(); test_backtest_runs(); 
+    test_lineups_and_nc_scoring(); test_position_flexibility(); test_backtest_runs(); 
     test_minutes(); test_scoring_2025(); test_pipeline_and_schema(); print("ok")

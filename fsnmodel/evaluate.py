@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .common import BENCH_POS, SHIRT_POS
 from .data import assign_positions
 from .model import project
 from .scoring import points_from_stats, scrums_for

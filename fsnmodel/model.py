@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .common import BENCH_POS, FORWARDS, POSITIONS, SHIRT_POS
+from .common import BENCH_POS, FORWARDS, GROUP_DEFAULT_ROLE, POSITIONS, ROLE_GROUP, SHIRT_POS, group_of_role, role_of
 from .data import MATCH_MIN
 from .scoring import COMPONENTS, points_from_stats, scrums_for
 
@@ -20,7 +20,8 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
           "offloads": 4.0, "cb": 5.0, "missed": 4.0, "lw": 4.0, "err": 5.0}
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
-PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5}   # tuned on 2023-26 walk-forward backtests   # tunable (scripts/tune.py)
+PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5,   # tuned on 2023-26 walk-forward backtests (scripts/tune.py)
+          "role_detail": "shirt", "k_team": 8.0}     # role_detail: "shirt" = 11 roles by shirt number, "group" = the 8 fantasy positions; k_team: pseudo 80-min games pulling a team's role baseline to the global one
 
 
 def wt(days: pd.Series | np.ndarray, hl: float) -> np.ndarray:
@@ -80,6 +81,10 @@ class TeamModel:
 
 
 class PlayerModel:
+    """Rates per 80 minutes, built in three layers:
+         global baseline per role  ->  this team's baseline in that role (team style, shrunk to global)  ->  x this player's multiplier (his edge over the baseline).
+    A fly-half at full-back therefore gets the team's full-back baseline times his own edge, not fly-half numbers."""
+
     def __init__(self, hist: pd.DataFrame, pos: pd.Series, asof: pd.Timestamp, rules: dict):
         self.R, self.asof = rules, asof
         h = hist.copy()
@@ -88,20 +93,38 @@ class PlayerModel:
         h["w"] = wt(h["age"], PARAMS["half_life"])
         h["played"] = h["minutes"] > 0
         h["sub_on"] = h["played"] & ~h["started"]
-        self.h = h
-        self.pos = pos
-        # per-80 position priors from appearances with real minutes
-        a = h[h["minutes"] >= 10]
-        self.prior = {}
-        for p in POSITIONS:
-            g = a[a["pos"] == p]
-            mins = g["minutes"].sum() or 1.0
-            self.prior[p] = {s: float(g[col].fillna(0).sum() / mins * MATCH_MIN) for s, col in self._cols().items()}
-        gs = a[a["started"]]
-        self.start_min = {p: self._m(gs[gs["pos"] == p]["minutes"], 65.0) for p in POSITIONS}
-        gb = a[~a["started"]]
-        self.sub_min = {p: self._m(gb[gb["pos"] == p]["minutes"], 22.0) for p in POSITIONS}
-        # who comes on from the bench, by shirt number (16-23): probability and minutes
+        det = PARAMS["role_detail"]
+        h["role"] = [role_of(s, det) for s in h["shirt"]]
+        known = h.dropna(subset=["role"])
+        self.modal_role = known.groupby("pid")["role"].agg(lambda x: x.value_counts().index[0]).to_dict()
+        dflt = lambda g: (g if det == "group" else GROUP_DEFAULT_ROLE.get(g, "WING"))  # noqa: E731
+        h["role"] = h["role"].fillna(h["pid"].map(self.modal_role)).fillna(h["pos"].map(dflt)).fillna("WING" if det != "group" else "BACK3")
+        self.h, self.pos, self.det = h, pos, det
+        self.tw_known = h["tw"].notna().any()
+        cols = self._cols()
+        a_ = h[h["minutes"] >= 10]
+        # ---- global per-role and per-group baselines (per 80 min)
+        def per80(g):
+            mins = g["minutes"].sum()
+            return {s: (float(g[c].fillna(0).sum() / mins * MATCH_MIN) if mins > 0 else None) for s, c in cols.items()}
+        allr = per80(a_)
+        self.G = {}
+        grp_rows = {}
+        for r, g in a_.groupby("role"):
+            self.G[r] = per80(g)
+        for gname, g in a_.assign(grp=a_["role"].map(group_of_role)).groupby("grp"):
+            grp_rows[gname] = per80(g)
+        self._allr, self._grp = allr, grp_rows
+        for r in list(self.G):                                   # fill gaps from the group, then the overall rate
+            for s in cols:
+                if self.G[r][s] is None:
+                    self.G[r][s] = grp_rows.get(group_of_role(r), allr).get(s) or allr.get(s) or 0.0
+        # ---- minutes by role
+        gs = a_[a_["started"]]; gb = a_[~a_["started"]]
+        self.start_min = {r: self._m(g["minutes"], 65.0) for r, g in gs.groupby("role")}
+        self.sub_min = {r: self._m(g["minutes"], 22.0) for r, g in gb.groupby("role")}
+        self._start_all, self._sub_all = self._m(gs["minutes"], 65.0), self._m(gb["minutes"], 22.0)
+        # ---- who comes on from the bench, by shirt number (16-23): probability and minutes
         bn = h[h["shirt"].fillna(0) >= 16]
         allon = bn[bn["minutes"] > 0]
         self.bench_on, self.bench_min = {}, {}
@@ -110,8 +133,38 @@ class PlayerModel:
             on = g[g["minutes"] > 0]
             self.bench_on[sh] = float(len(on) / len(g)) if len(g) >= 8 else (float(len(allon) / len(bn)) if len(bn) else 0.8)
             self.bench_min[sh] = float(on["minutes"].mean()) if len(on) >= 5 else (float(allon["minutes"].mean()) if len(allon) else 22.0)
-        # TW (turnovers won) can be missing for fallback data: use the matches that have it
-        self.tw_known = h["tw"].notna().any()
+        # ---- team x role baselines (recency weighted, shrunk to the global role rate)
+        p = h[h["minutes"] >= 1].copy()
+        p["e80"] = p["w"] * p["minutes"] / MATCH_MIN
+        kT = PARAMS["k_team"]
+        Tser = {}
+        for s, c in cols.items():
+            pp = p if s != "tw" else p[p["tw"].notna()]
+            gb = pp.assign(_v=pp[c].fillna(0) * pp["w"]).groupby(["team", "role"]).agg(v=("_v", "sum"), e=("e80", "sum"))
+            gr = np.array([self.g_rate(r, s) for (_, r) in gb.index])
+            gb["rate"] = (gb["v"] + kT * gr) / (gb["e"] + kT)
+            Tser[s] = gb["rate"].to_dict()
+        keys = set(zip(p["team"], p["role"]))
+        self.T = {key: {s: Tser[s].get(key, self.g_rate(key[1], s)) for s in cols} for key in keys}
+        # ---- player multipliers: observed / expected given the (team, role) baselines of the matches he played
+        bdf = pd.DataFrame({s: [self.T[(t, r)][s] for t, r in zip(p["team"], p["role"])] for s in cols}, index=p.index)
+        mask = {s: (p["tw"].notna().astype(float) if s == "tw" else 1.0) for s in cols}
+        obs = pd.DataFrame({s: p[c].fillna(0) * p["w"] * mask[s] for s, c in cols.items()}).groupby(p["pid"]).sum()
+        ex = pd.DataFrame({s: bdf[s] * p["e80"] * mask[s] for s in cols}).groupby(p["pid"]).sum()
+        ee = pd.DataFrame({s: p["e80"] * mask[s] for s in cols}).groupby(p["pid"]).sum()
+        kk = pd.Series({s: K_RATE[s] * PARAMS["k_scale"] for s in cols})
+        rbar = (ex / ee).replace([np.inf, -np.inf], np.nan).fillna(0.0)
+        u = ((obs + kk * rbar) / (ex + kk * rbar)).where((ex > 1e-9) & (rbar > 0), 1.0).clip(0.2, 5.0)
+        self.u = {pid: row.to_dict() for pid, row in u.iterrows()}
+
+    def g_rate(self, role: str, s: str) -> float:
+        g = self.G.get(role)
+        v = g.get(s) if g else None
+        if v is None:
+            v = self._grp.get(group_of_role(role), self._allr).get(s)
+        if v is None:
+            v = self._allr.get(s)
+        return float(v or 0.0)
 
     @staticmethod
     def _m(x: pd.Series, default: float) -> float:
@@ -124,8 +177,25 @@ class PlayerModel:
                 "ls": "ls", "pc": "pc", "yc": "yc", "rc": "rc", "conv": "conv", "pen": "pen", "dg": "dg",
                 "offloads": "offloads", "cb": "cb", "missed": "missed", "lw": "lw", "err": "err"}
 
+    # ---- roles
+    def role_probs(self, pid: str, fallback: str) -> dict:
+        """Share of his recent appearances in each role (recency weighted): a fly-half who also plays full-back gets both."""
+        g = self.h[(self.h["pid"] == pid) & (self.h["minutes"] >= 1)]
+        if len(g) == 0:
+            return {fallback: 1.0}
+        sh = g.groupby("role")["w"].sum()
+        sh = sh / sh.sum()
+        sh = sh[sh >= 0.08]
+        return {r: float(v / sh.sum()) for r, v in sh.items()}
+
+    def rates(self, pid: str, role: str, team: str) -> dict:
+        base = self.T.get((team, role))
+        u = self.u.get(pid, {})
+        out = {s: (base[s] if base else self.g_rate(role, s)) * u.get(s, 1.0) for s in self._cols()}
+        return out
+
     # ---- availability
-    def appearance(self, pid: str, team: str, pos: str, n_team_matches: int = 10) -> dict:
+    def appearance(self, pid: str, team: str, role: str, n_team_matches: int = 10) -> dict:
         g = self.h[self.h["pid"] == pid]
         t_hist = self.h[self.h["team"] == team].drop_duplicates(["match_key", "team"]).sort_values("date")
         t_hist = t_hist.tail(n_team_matches)
@@ -135,7 +205,7 @@ class PlayerModel:
         gm = g.set_index("match_key")
         started = np.array([float(gm["started"].get(k, False)) if k in gm.index else 0.0 for k in window["match_key"]])
         subon = np.array([float(gm["sub_on"].get(k, False)) if k in gm.index else 0.0 for k in window["match_key"]])
-        prior_s = 0.12 if pos != "BACK3" else 0.10
+        prior_s = 0.12 if group_of_role(role) != "BACK3" else 0.10
         prior_b = 0.20
         k = 0.75                             # pseudo-matches of prior: a run of 10 starts should read ~0.95, one start ~0.6
         n = len(window)                      # shrink by match count, not by decayed weight
@@ -147,10 +217,10 @@ class PlayerModel:
         tot = ps + pb
         if tot > 0.98:
             ps, pb = ps / tot * 0.98, pb / tot * 0.98
-        # minutes if starting / if on as a replacement: this player's own history, shrunk to the position
+        # minutes if starting / if on as a replacement: this player's own history, shrunk to the role
         gs, gb = g[g["started"] & g["played"]], g[g["sub_on"]]
-        ms = self._shrunk_mean(gs["minutes"], gs["w"], self.start_min[pos], 2.0)
-        mb = self._shrunk_mean(gb["minutes"], gb["w"], self.sub_min[pos], 2.0)
+        ms = self._shrunk_mean(gs["minutes"], gs["w"], self.start_min.get(role, self._start_all), 2.0)
+        mb = self._shrunk_mean(gb["minutes"], gb["w"], self.sub_min.get(role, self._sub_all), 2.0)
         return dict(p_start=ps, p_sub=pb, min_start=ms, min_sub=mb, caps=int(g["played"].sum()), last=g["date"].max() if len(g) else pd.NaT)
 
     @staticmethod
@@ -158,22 +228,6 @@ class PlayerModel:
         if len(x) == 0:
             return prior
         return float((np.average(x, weights=w) * w.sum() + prior * k) / (w.sum() + k))
-
-    # ---- per-80 rates (empirical Bayes)
-    def rates(self, pid: str, pos: str) -> dict:
-        g = self.h[(self.h["pid"] == pid) & (self.h["minutes"] >= 1)]
-        e80 = (g["minutes"] * g["w"]).sum() / MATCH_MIN        # recency-weighted 80-minute equivalents
-        out = {}
-        for s, col in self._cols().items():
-            pr = self.prior[pos][s]
-            if s == "tw" and not self.tw_known:
-                out[s] = pr; continue
-            gg = g if s != "tw" else g[g["tw"].notna()]
-            e = (gg["minutes"] * gg["w"]).sum() / MATCH_MIN
-            tot = (gg[col].fillna(0) * gg["w"]).sum()
-            k = K_RATE[s] * PARAMS["k_scale"]
-            out[s] = float((tot + pr * k) / (e + k))
-        return out, float(e80)
 
 
 def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dict, asof: pd.Timestamp,
@@ -222,8 +276,15 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             r = latest.loc[pid]
             team = ov.get(pid, {}).get("team", r["team"])
             p = ov.get(pid, {}).get("pos") or pos[pid]
-        ap = pm.appearance(pid, team, p)
-        rt, e80 = pm.rates(pid, p)
+        if pid in extras:
+            mrole = role_of(extras[pid][2], PARAMS["role_detail"]) or (GROUP_DEFAULT_ROLE.get(p, "WING") if PARAMS["role_detail"] != "group" else p)
+        else:
+            mrole = pm.modal_role.get(pid) or (GROUP_DEFAULT_ROLE.get(p, "WING") if PARAMS["role_detail"] != "group" else p)
+        roles_default = pm.role_probs(pid, mrole)
+        rate_cache: dict = {}
+        rates_for = lambda role, _t=team, _pid=pid: rate_cache.setdefault(role, pm.rates(_pid, role, _t))  # noqa: E731
+        ap = pm.appearance(pid, team, mrole)
+        e80 = 0.0
         avail = float(ov.get(pid, {}).get("availability", 1.0))
         flags = []
         if ap["caps"] == 0:
@@ -253,26 +314,35 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             w_, d_, l_ = tm.p_win(team, opp) if is_home else tuple(reversed(tm.p_win(opp, team)))
             ps, pb = ap["p_start"] * avail, ap["p_sub"] * avail
             em_start, em_sub = ap["min_start"], ap["min_sub"]
-            ln = None
+            ln, roles, rl = None, roles_default, None
             lm = lineup_map.get((rd, team))
             if lm is not None:                       # the team's 23 are named: no need to predict who starts
                 ent = lm.get(pid)
                 if ent is None:
                     ln, ps, pb = "X", 0.0, 0.0
-                elif ent[0] <= 15:
-                    ln, ps, pb = "S", 1.0 * avail, 0.0
                 else:
-                    ln, ps, pb = "B", 0.0, pm.bench_on.get(ent[0], 0.85) * avail
-                    em_sub = pm.bench_min.get(ent[0], em_sub)
+                    rl = role_of(ent[0], PARAMS["role_detail"]) or mrole          # the shirt he wears decides his role (23 = utility: his usual one)
+                    roles = {rl: 1.0}
+                    if ent[0] <= 15:
+                        ln, ps, pb = "S", 1.0 * avail, 0.0
+                    else:
+                        ln, ps, pb = "B", 0.0, pm.bench_on.get(ent[0], 0.85) * avail
+                        em_sub = pm.bench_min.get(ent[0], em_sub)
             exp_min = ps * em_start + pb * em_sub
-            # points if the player starts / comes off the bench (per-80 rates x minutes x context)
-            def stat_line(mins: float) -> dict:
-                return {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN, "scrums": scrums_for(p, mins, R)}
-            ls_, lb_ = stat_line(em_start), stat_line(em_sub)
-            cs = points_from_stats(ls_, p, R, floor_metres=False)
-            cb = points_from_stats(lb_, p, R, floor_metres=False)
-            cs["carrying"] -= 0.45 * 1.0 if ls_["metres"] > 0 else 0   # floor-to-10m continuity correction
-            cb["carrying"] -= 0.45 * 1.0 if lb_["metres"] > 0 else 0
+            # points if the player starts / comes off the bench: per-80 rates for the role(s) he plays x minutes x context
+            def pts_for(mins: float) -> dict:
+                acc = {c: 0.0 for c in COMPONENTS if c not in ("potm", "team")}
+                for r_, q_ in roles.items():
+                    rt = rates_for(r_)
+                    g_ = group_of_role(r_)
+                    sl = {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN, "scrums": scrums_for(g_, mins, R)}
+                    c_ = points_from_stats(sl, g_, R, floor_metres=False)
+                    if sl["metres"] > 0:
+                        c_["carrying"] -= 0.45                         # floor-to-10m continuity correction
+                    for k_, v_ in c_.items():
+                        acc[k_] += q_ * v_
+                return acc
+            cs, cb = pts_for(em_start), pts_for(em_sub)
             comp = {c: ps * cs.get(c, 0) + pb * cb.get(c, 0) for c in COMPONENTS if c not in ("potm", "team")}
             es = sum(cs.values()); eb = sum(cb.values())
             P = R["points"]
@@ -280,11 +350,14 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             comp["team"] = (ps * em_start + pb * em_sub) / MATCH_MIN * win_draw
             comp["potm"] = 0.0   # filled below once the whole squad is known
             pst_r.append(ps)
-            es_r.append((es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln))
+            es_r.append((es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln, rl))
             comp_round.append(comp)
             per_round.append(0.0)
             sup_round.append(0.0)
-        players.append(dict(pid=pid, name=r["name"], team=team, pos=p, caps=ap["caps"], e80=e80, flags=flags,
+        top = sorted(roles_default.items(), key=lambda kv: -kv[1])
+        if len(top) > 1 and top[0][1] < 0.85:
+            flags.append("plays " + "/".join(r_ for r_, _ in top[:2]))
+        players.append(dict(pid=pid, name=r["name"], team=team, pos=p, caps=ap["caps"], e80=e80, flags=flags, roles=[[r_, round(q_, 2)] for r_, q_ in top[:3]],
                             p_start=ap["p_start"] * avail, p_sub=ap["p_sub"] * avail, comp=comp_round, raw=es_r))
 
     # POTM heuristic: P(team wins) share-weighted by the squad's attacking output
@@ -313,7 +386,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             raw = pl["raw"][ri]
             if not isinstance(raw, tuple):
                 exps.append(0.0); sups.append(0.0); comps.append({k: 0.0 for k in COMPONENTS}); continue
-            es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln = raw
+            es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln, rl = raw
             total = sum(c.values())
             S = R["supersub"]
             # value if nominated supersub: x3 when he comes on, x0.5 when he starts / does not come on
@@ -322,11 +395,11 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         fixtures_p = []
         for ri, rd in enumerate(rounds):
             raw = pl["raw"][ri]
-            fixtures_p.append(None if not isinstance(raw, tuple) else {"opp": raw[5], "home": raw[6], "ln": raw[9]})
+            fixtures_p.append(None if not isinstance(raw, tuple) else {"opp": raw[5], "home": raw[6], "ln": raw[9], "rl": raw[10]})
         out_players.append(dict(id=pl["pid"], name=pl["name"], team=pl["team"], pos=pl["pos"], caps=pl["caps"],
                                 pStart=round(pl["p_start"], 3), pSub=round(pl["p_sub"], 3),
                                 eMin=round(sum(r_[8] for r_ in pl["raw"] if isinstance(r_, tuple)) / max(1, sum(isinstance(r_, tuple) for r_ in pl["raw"])), 1),
-                                flags=pl["flags"], exp=exps, sup=sups, comp=comps, fx=fixtures_p))
+                                flags=pl["flags"], roles=pl["roles"], exp=exps, sup=sups, comp=comps, fx=fixtures_p))
     # estimated stars (official prices are not published until the game opens): rank-based, top = 20
     _estimate_prices(out_players, rules)
     rd_info = []
