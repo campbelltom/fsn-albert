@@ -46,7 +46,8 @@ def main() -> None:
     text = "\n".join(out)
     print(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
-        Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(text)
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+            fh.write(text + "\n")
 
 
 if __name__ == "__main__":

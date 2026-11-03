@@ -19,6 +19,7 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
           "pc": 6.0, "yc": 40.0, "rc": 80.0, "conv": 3.0, "pen": 3.0, "dg": 20.0}
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
+PARAMS = {"half_life": HALF_LIFE_DAYS, "team_hl": TEAM_HALF_LIFE, "k_scale": 1.0, "ctx": 1.0}   # tunable (scripts/tune.py)
 
 
 def wt(days: pd.Series | np.ndarray, hl: float) -> np.ndarray:
@@ -38,7 +39,7 @@ class TeamModel:
 
     def __init__(self, hist: pd.DataFrame, asof: pd.Timestamp, iters: int = 30, k: float = 3.0):
         m = hist.drop_duplicates(["match_key", "team"])[["team", "opp", "home", "pf", "pa", "date"]].copy()
-        m["w"] = wt((asof - m["date"]).dt.days.clip(lower=0), TEAM_HALF_LIFE)
+        m["w"] = wt((asof - m["date"]).dt.days.clip(lower=0), PARAMS["team_hl"])
         m["ha"] = np.where(m["home"], HOME_MULT, 1 / HOME_MULT)
         self.avg = float(np.average(m["pf"], weights=m["w"])) if len(m) else 24.0
         teams = sorted(set(m["team"]) | set(m["opp"]))
@@ -83,7 +84,7 @@ class PlayerModel:
         h = hist.copy()
         h["pos"] = h["pid"].map(pos)
         h["age"] = (asof - h["date"]).dt.days.clip(lower=0)
-        h["w"] = wt(h["age"], HALF_LIFE_DAYS)
+        h["w"] = wt(h["age"], PARAMS["half_life"])
         h["played"] = h["minutes"] > 0
         h["sub_on"] = h["played"] & ~h["started"]
         self.h = h
@@ -159,7 +160,7 @@ class PlayerModel:
             gg = g if s != "tw" else g[g["tw"].notna()]
             e = (gg["minutes"] * gg["w"]).sum() / MATCH_MIN
             tot = (gg[col].fillna(0) * gg["w"]).sum()
-            k = K_RATE[s]
+            k = K_RATE[s] * PARAMS["k_scale"]
             out[s] = float((tot + pr * k) / (e + k))
         return out, float(e80)
 
@@ -219,6 +220,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             exp_against = tm.expected_points(opp, team, not is_home)
             atk = float(np.clip(exp_for / tm.base_pf[team], 0.6, 1.6))
             dfm = float(np.clip(exp_against / tm.base_pa[team], 0.6, 1.6))
+            ctx = PARAMS["ctx"]
+            atk, dfm = atk ** ctx, dfm ** ctx
             mult = {"tries": atk, "assists": atk, "conv": atk, "pen": 1.0, "dg": 1.0, "metres": atk ** 0.5, "db": atk ** 0.5,
                     "tackles": dfm ** 0.4, "tw": 1.0, "ls": 1.0, "pc": 1.0, "yc": 1.0, "rc": 1.0}
             w_, d_, l_ = tm.p_win(team, opp) if is_home else tuple(reversed(tm.p_win(opp, team)))
