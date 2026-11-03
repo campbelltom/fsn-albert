@@ -28,11 +28,13 @@ def test_scoring_2025():
 
 def test_pipeline_and_schema():
     import subprocess
-    from make_fixture import make
+    from make_fixture import make, make_extra
     d = Path(tempfile.mkdtemp())
-    make(d / "rfu")
+    make(d / "rfu"); make_extra(d / "rfu")
     subprocess.check_call([sys.executable, str(ROOT / "scripts" / "run_production.py"), "--rfu", str(d / "rfu"), "--espn", str(d / "none"), "--out", str(d / "out"), "--no-encrypt"])
     j = json.loads((d / "out" / "predictions.json").read_text())
+    assert all(p["team"] != "South Africa" for p in j["players"]), "non-Six-Nations players must be filtered out"
+    assert j["history"]["matches"] == 48          # 45 Six Nations + 3 tests
     assert len(j["rounds"]) == 5 and all(len(m["matches"]) == 3 for m in j["rounds"])
     for p in j["players"]:
         assert len(p["exp"]) == 5 and all(math.isfinite(x) for x in p["exp"] + p["sup"])

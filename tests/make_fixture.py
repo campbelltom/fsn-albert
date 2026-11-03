@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 TEAMS = ["England", "France", "Ireland", "Italy", "Scotland", "Wales"]
-STRENGTH = {"England": 1.0, "France": 1.2, "Ireland": 1.15, "Italy": 0.8, "Scotland": 1.0, "Wales": 0.75}
+STRENGTH = {"South Africa": 1.35, "England": 1.0, "France": 1.2, "Ireland": 1.15, "Italy": 0.8, "Scotland": 1.0, "Wales": 0.75}
 FIX = {  # per season: 15 (round, home, away) fixtures
     "rounds": [(1, "Ireland", "England"), (1, "Scotland", "Italy"), (1, "France", "Wales"), (2, "Italy", "Ireland"), (2, "Scotland", "Wales"),
                (2, "England", "France"), (3, "Wales", "Ireland"), (3, "England", "Italy"), (3, "France", "Scotland"), (4, "Scotland", "Ireland"),
@@ -20,7 +20,7 @@ RNG = random.Random(7)
 
 def squad(team: str):
     """23 persistent players per team (ids stable across seasons)."""
-    base = TEAMS.index(team) * 1000
+    base = (TEAMS + ["South Africa"]).index(team) * 1000
     return [{"id": str(base + i), "name": f"{team[:3]}{i}", "shirt": i} for i in range(1, 24)]
 
 
@@ -72,6 +72,24 @@ def make(out: Path, seasons=(2024, 2025, 2026)):
             (out / f"{y}_{h}_{a}.json").write_text(json.dumps(m))
 
 
+def make_extra(out: Path):
+    """Non-Six-Nations tests (England v South Africa) to check the model is competition-agnostic and the site filters them out."""
+    import datetime as dt
+    for y, mo, dd, h, a in ((2024, 11, 16, "England", "South Africa"), (2025, 11, 8, "South Africa", "England"), (2026, 7, 4, "South Africa", "England")):
+        sc_h, sc_a = (20, 29) if h == "England" else (31, 14)
+        players = []
+        for team in (h, a):
+            for p in squad(team):
+                sh = p["shirt"]
+                mins = 80 if sh <= 15 else (30 if sh <= 20 else 0)
+                ev = [] if sh <= 15 else ([{"type": "on", "min": 50}] if mins else [])
+                players.append({"id": p["id"], "name": p["name"], "team": team, "shirt": sh, "events": ev, "stats": stat_line(sh, mins, STRENGTH[team])})
+        m = {"season": y, "competition": "Autumn Nations Series", "home": h, "away": a, "teams": [h, a],
+             "date": dt.date(y, mo, dd).strftime("%A %d %B %Y"), "score": {"home": sc_h, "away": sc_a, "homeName": h, "awayName": a}, "players": players, "source": "rfu"}
+        (out / f"x_{y}_{h}_{a}.json").write_text(json.dumps(m))
+
+
 if __name__ == "__main__":
-    make(Path(sys.argv[1] if len(sys.argv) > 1 else "data_test/rfu"))
+    _d = Path(sys.argv[1] if len(sys.argv) > 1 else "data_test/rfu")
+    make(_d); make_extra(_d)
     print("fixture written")

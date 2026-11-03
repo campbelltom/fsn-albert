@@ -43,7 +43,7 @@
   // ---- stats tables (hidden tabs are still in the DOM)
   const kind = heads => heads.includes('DB') ? 'attack' : heads.includes('MT') ? 'defence'
     : heads.includes('PG') ? 'kicking' : heads.includes('LS') ? 'setplay' : heads.includes('PC') ? 'discipline' : null;
-  document.querySelectorAll('[class*=c111] table.Opta-Striped').forEach(t => {
+  document.querySelectorAll('table.Opta-Striped').forEach(t => {
     const hr = t.rows[0];
     if (!hr) return;
     const cells = [...hr.cells].map(c => txt(c.innerText));

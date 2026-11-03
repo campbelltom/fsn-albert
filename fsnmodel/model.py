@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .common import FORWARDS, POSITIONS, TEAMS
+from .common import FORWARDS, POSITIONS, SIX_NATIONS, TEAMS
 from .data import MATCH_MIN
 from .scoring import COMPONENTS, points_from_stats
 
@@ -19,7 +19,6 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
           "pc": 6.0, "yc": 40.0, "rc": 80.0, "conv": 3.0, "pen": 3.0, "dg": 20.0}
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
-HOME_ADV = 3.0               # points
 
 
 def wt(days: pd.Series | np.ndarray, hl: float) -> np.ndarray:
@@ -30,26 +29,46 @@ def _phi(x: float) -> float:
     return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
 
-class TeamModel:
-    """Attack/defence from recency-weighted points for/against, shrunk to the league mean."""
+HOME_MULT = 1.06
 
-    def __init__(self, hist: pd.DataFrame, asof: pd.Timestamp):
+
+class TeamModel:
+    """Attack/defence for every nation, fitted jointly: points = avg * attack(team) * defence(opp) * home factor.
+    Recency weighted, shrunk to 1 with pseudo-matches, so a nation's rating reflects the quality of the opposition it faced."""
+
+    def __init__(self, hist: pd.DataFrame, asof: pd.Timestamp, iters: int = 30, k: float = 3.0):
         m = hist.drop_duplicates(["match_key", "team"])[["team", "opp", "home", "pf", "pa", "date"]].copy()
         m["w"] = wt((asof - m["date"]).dt.days.clip(lower=0), TEAM_HALF_LIFE)
+        m["ha"] = np.where(m["home"], HOME_MULT, 1 / HOME_MULT)
         self.avg = float(np.average(m["pf"], weights=m["w"])) if len(m) else 24.0
-        self.att, self.dfn, self.base_pf, self.base_pa = {}, {}, {}, {}
-        k = 4.0
-        for t in TEAMS:
+        teams = sorted(set(m["team"]) | set(m["opp"]))
+        att = {t: 1.0 for t in teams}
+        dfn = {t: 1.0 for t in teams}
+        for _ in range(iters):
+            for t in teams:
+                g = m[m["team"] == t]
+                if len(g):
+                    exp = self.avg * g["opp"].map(dfn).values * g["ha"].values
+                    att[t] = ((g["w"] * g["pf"]).sum() + k * self.avg) / ((g["w"].values * exp).sum() + k * self.avg)
+            s = np.mean(list(att.values()))
+            att = {t: v / s for t, v in att.items()}
+            for t in teams:
+                g = m[m["opp"] == t]                       # matches where t was the defence
+                if len(g):
+                    exp = self.avg * g["team"].map(att).values * g["ha"].values
+                    dfn[t] = ((g["w"] * g["pf"]).sum() + k * self.avg) / ((g["w"].values * exp).sum() + k * self.avg)
+        self.att, self.dfn = att, dfn
+        self.base_pf, self.base_pa = {}, {}
+        for t in teams:
             g = m[m["team"] == t]
             sw = g["w"].sum()
-            pf = (np.average(g["pf"], weights=g["w"]) * sw + self.avg * k) / (sw + k) if sw else self.avg
-            pa = (np.average(g["pa"], weights=g["w"]) * sw + self.avg * k) / (sw + k) if sw else self.avg
-            self.att[t], self.dfn[t] = pf / self.avg, pa / self.avg
-            self.base_pf[t], self.base_pa[t] = pf, pa
+            kk = 4.0
+            self.base_pf[t] = (np.average(g["pf"], weights=g["w"]) * sw + self.avg * kk) / (sw + kk) if sw else self.avg
+            self.base_pa[t] = (np.average(g["pa"], weights=g["w"]) * sw + self.avg * kk) / (sw + kk) if sw else self.avg
 
     def expected_points(self, team: str, opp: str, home: bool) -> float:
-        e = self.avg * self.att[team] * self.dfn[opp]
-        return max(6.0, e + (HOME_ADV / 2 if home else -HOME_ADV / 2))
+        e = self.avg * self.att.get(team, 1.0) * self.dfn.get(opp, 1.0) * (HOME_MULT if home else 1 / HOME_MULT)
+        return max(6.0, e)
 
     def p_win(self, home: str, away: str) -> tuple[float, float, float]:
         mu = self.expected_points(home, away, True) - self.expected_points(away, home, False)
@@ -163,6 +182,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     for pid, r in latest.iterrows():
         if pid in exclude:
             continue
+        if ov.get(pid, {}).get("team", r["team"]) not in SIX_NATIONS:
+            continue                      # capped for another nation (or club-only): not on this site
         age = (asof - r["date"]).days
         if age <= max_age_days or pid in include:
             cand.append(pid)
@@ -278,7 +299,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                            "pHome": round(w_ + d_ / 2, 3), "xHome": round(tm.expected_points(f["home"], f["away"], True), 1),
                            "xAway": round(tm.expected_points(f["away"], f["home"], False), 1)})
         rd_info.append({"round": rd, "matches": ms})
-    teams = {t: {"att": round(tm.att[t], 3), "def": round(tm.dfn[t], 3)} for t in TEAMS}
+    teams = {t: {"att": round(tm.att.get(t, 1.0), 3), "def": round(tm.dfn.get(t, 1.0), 3)} for t in TEAMS}
     return {"players": sorted(out_players, key=lambda x: -sum(x["exp"])), "rounds": rd_info, "teams": teams}
 
 

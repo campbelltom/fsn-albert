@@ -8,6 +8,10 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
   Playwright and reads the tables with `fsnmodel/rfu_extract.js`: lineup (shirt number, substitution minutes) and per player tries, metres, carries,
   defenders beaten, clean breaks, passes, offloads, turnovers conceded, try assists, tackles, missed tackles, **turnovers won**, kicks, conversions,
   penalty goals, drop goals, lineouts won/stolen, penalties conceded, cards. Finished matches are cached; only new pages are fetched.
+- **Beyond the Six Nations:** the model is competition-agnostic. Every international in `data/rfu/` feeds one joint attack/defence rating per
+  nation and the per-position priors; only players whose latest team is a Six Nations side are exported to the site. Extra matches come from
+  `python scripts/scrape_rfu.py --england-tests` (England's autumn series pages, both squads) and `config/rfu_matches.json` (any `match-centre` /
+  `match-centre-elite` URL, e.g. South Africa v New Zealand). Page types other than the Six Nations ones are untested against the live site.
 - **Fallback: ESPN** public JSON (`fsnmodel/espn.py`) for matches the RFU scrape cannot get. ESPN has no turnovers won and no substitution minutes
   (minutes are estimated and the player is flagged).
 - Not in either source: 50:22 kicks and Player of the Match. 50:22 is a config constant (0); POTM is a heuristic (win probability x share of attacking output).

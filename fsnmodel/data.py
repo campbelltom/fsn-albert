@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .common import BENCH_POS, SHIRT_POS, TEAMS
+from .common import BENCH_POS, SHIRT_POS, norm_team
 
 MATCH_MIN = 80
 STAT_COLS = ["tries", "assists", "metres", "carries", "db", "cb", "offloads", "tackles", "missed", "tw", "ls",
@@ -18,7 +18,7 @@ STAT_COLS = ["tries", "assists", "metres", "carries", "db", "cb", "offloads", "t
 def parse_date(s: str | None):
     if not s:
         return pd.NaT
-    for fmt in ("%A %d %B %Y", "%Y-%m-%d"):
+    for fmt in ("%A %d %B %Y", "%A %d %b %Y", "%d %B %Y", "%d %b %Y", "%Y-%m-%d"):
         try:
             return pd.Timestamp(datetime.strptime(s, fmt))
         except ValueError:
@@ -52,10 +52,12 @@ def match_rows(m: dict, est_minutes_start: float = 68.0, est_minutes_sub: float 
     if not m.get("score"):
         return []
     sc = m["score"]
+    m = {**m, "home": norm_team(m["home"]), "away": norm_team(m["away"])}
     d = parse_date(m.get("date"))
+    comp = m.get("competition") or "Six Nations"
     rows = []
     for p in m["players"]:
-        team = p.get("team")
+        team = norm_team(p.get("team"))
         if team not in (m["home"], m["away"]):
             continue
         is_home = team == m["home"]
@@ -73,7 +75,7 @@ def match_rows(m: dict, est_minutes_start: float = 68.0, est_minutes_sub: float 
         mt = _g(s, "defence:MT")
         made = tk if m.get("tackles_made") else tk  # decided below by rules flag (raw kept as attempted)
         rows.append(dict(
-            season=m["season"], date=d, team=team, opp=m["away"] if is_home else m["home"], home=is_home,
+            season=m["season"], competition=comp, date=d, team=team, opp=m["away"] if is_home else m["home"], home=is_home,
             pf=sc["home"] if is_home else sc["away"], pa=sc["away"] if is_home else sc["home"],
             pid=str(p["id"]), name=p.get("name"), shirt=shirt, started=started, minutes=mins, est_minutes=est,
             source=m.get("source", "rfu"), tackles_raw=tk, tackles_made_flag=bool(m.get("tackles_made")),
@@ -96,7 +98,7 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
             m = json.loads(f.read_text())
             if not m.get("score"):
                 continue
-            key = (m["season"], frozenset((m["home"], m["away"])))
+            key = (m["season"], m.get("date"), frozenset((norm_team(m["home"]), norm_team(m["away"]))))
             raw.setdefault(key, m)
     rows = []
     for m in raw.values():
@@ -109,8 +111,8 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
         df["tackles"] = np.where(df["tackles_made_flag"], df["tackles_raw"], np.maximum(df["tackles_raw"] - df["missed"], 0))
     else:
         df["tackles"] = df["tackles_raw"]
-    df = df[df["team"].isin(TEAMS)].copy()
-    df["match_key"] = df["season"].astype(str) + "_" + df[["team", "opp"]].apply(lambda r: "_".join(sorted(r)), axis=1)
+    df = df.copy()
+    df["match_key"] = df["date"].dt.strftime("%Y%m%d").fillna("nodate") + "_" + df[["team", "opp"]].apply(lambda r: "_".join(sorted(r)), axis=1)
     return df.sort_values(["date", "match_key"]).reset_index(drop=True)
 
 
