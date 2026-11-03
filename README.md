@@ -34,7 +34,7 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
 A player's points depend on the shirt he wears: a fly-half at full-back, a wing at centre. Rates per 80 minutes are built in three layers: a global baseline per role
 (11 roles from shirt numbers: prop, hooker, lock, flanker, no.8, scrum-half, fly-half, inside/outside centre, wing, full-back), this team's baseline in that role (team style),
 and a per-player multiplier (his edge over that baseline, shrunk towards 1). With a named lineup the shirt decides the role; otherwise the player's recent mix of roles is used.
-His listed fantasy position (for squad slots) does not change. `scripts/tune.py --set roles` compares this with the old position-only model.
+His listed fantasy position (for squad slots) does not change, and it is what the game scores him by: the shirt decides what he does on the pitch (tackles, metres, tries), the listed position decides how those and the scrum points are scored. `scripts/tune.py --set roles` compares this with the old position-only model.
 
 ## Named lineups
 Rugby teams are named ~48h before kick-off, so starters are not predicted once a team is named: `scripts/fetch_lineups.py` reads ESPN rosters (and `config/lineups.json`

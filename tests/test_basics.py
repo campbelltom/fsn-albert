@@ -95,6 +95,10 @@ def test_position_flexibility():
     assert by["2010"]["fx"][0]["rl"] == "FB" and by["2015"]["fx"][0]["rl"] == "FH", (by["2010"]["fx"][0], by["2015"]["fx"][0])
     assert by["2010"]["pos"] == "FH"                          # his listed position does not change
     assert all(len(p["roles"]) >= 1 for p in res["players"])
+    # scoring follows the listed fantasy position, not the shirt: a listed FH in the 15 shirt earns no front-row scrum points
+    from fsnmodel.scoring import scrums_for
+    R_ = load_json(ROOT / "config" / "rules_nc.json")
+    assert scrums_for("FH", 80, R_) == 0 and scrums_for("PROP", 80, R_) > 0
 
 
 def test_backtest_runs():
