@@ -60,8 +60,8 @@ jobs:
       - name: Backtest and snapshot evaluation (public stats only)
         run: python scripts/backtest.py --competition all --rules config/rules_nc.json
         continue-on-error: true
-      - name: Tune model settings by backtest (not on the schedule)
-        if: github.event_name != 'schedule'
+      - name: Tune model settings by backtest (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
         run: python scripts/tune.py --rules config/rules_nc.json
         continue-on-error: true
         timeout-minutes: 25

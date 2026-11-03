@@ -18,7 +18,8 @@ from fsnmodel.data import load_matches  # noqa: E402
 from fsnmodel.evaluate import compare, walk_forward  # noqa: E402
 
 VARIANTS = [
-    ("current", {}),
+    ("current (tuned defaults)", {}),
+    ("previous defaults", {"half_life": 420, "k_scale": 1.0, "ctx": 1.0}),
     ("form half-life 200d", {"half_life": 200}),
     ("form half-life 900d", {"half_life": 900}),
     ("shrink x0.4 (trust own data)", {"k_scale": 0.4}),

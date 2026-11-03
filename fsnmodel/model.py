@@ -19,7 +19,7 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
           "pc": 6.0, "yc": 40.0, "rc": 80.0, "conv": 3.0, "pen": 3.0, "dg": 20.0}
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
-PARAMS = {"half_life": HALF_LIFE_DAYS, "team_hl": TEAM_HALF_LIFE, "k_scale": 1.0, "ctx": 1.0}   # tunable (scripts/tune.py)
+PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5}   # tuned on 2023-26 walk-forward backtests   # tunable (scripts/tune.py)
 
 
 def wt(days: pd.Series | np.ndarray, hl: float) -> np.ndarray:
