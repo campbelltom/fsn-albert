@@ -177,7 +177,7 @@ class PlayerModel:
 
 
 def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dict, asof: pd.Timestamp,
-            overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None, lineup_map: dict | None = None) -> dict:
+            overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None, lineup_map: dict | None = None, only_pids: set | None = None) -> dict:
     """Returns {players: [...], rounds: [...]} ready for export. scope_teams: only players whose current team is in it (None = everyone)."""
     overrides = overrides or {}
     tm = TeamModel(hist, asof)
@@ -192,7 +192,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     latest = hist.sort_values("date").groupby("pid").tail(1).set_index("pid")
     cand = []
     for pid, r in latest.iterrows():
-        if pid in exclude:
+        if pid in exclude or (only_pids is not None and pid not in only_pids):
             continue
         if scope_teams is not None and ov.get(pid, {}).get("team", r["team"]) not in scope_teams:
             continue                      # capped for another nation: not part of this competition

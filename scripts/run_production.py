@@ -20,6 +20,7 @@ from fsnmodel.export import encrypt_json  # noqa: E402
 from fsnmodel.lineups import build_lineup_map, load_all  # noqa: E402
 from fsnmodel.evaluate import save_snapshots  # noqa: E402
 from fsnmodel.model import project  # noqa: E402
+from fsnmodel.pool import load_pool, match_history, match_one  # noqa: E402
 
 
 def summarise(hist, res) -> None:
@@ -38,6 +39,19 @@ def summarise(hist, res) -> None:
     for p in P[:12]:
         print("  %-22s %-9s %-5s %3d* start %.2f sub %.2f  exp/rd %.1f  %s" % (p["name"][:22], p["team"], p["pos"], p["price"], p["pStart"], p["pSub"], float(np.mean(p["exp"])), p["flags"]))
     print("flagged few caps:", sum("few caps" in p["flags"] for p in P), "| nan:", sum(1 for p in P if any(x != x for x in p["exp"])))
+
+
+def pool_report(res, pool, used) -> None:
+    """Log how well the pool matched, and how projections line up with the game's own points so far."""
+    import numpy as np
+    P = res["players"]
+    un = pool[~pool.index.isin(used)]
+    print(f"pool: {len(pool)} players, {len(used)} matched to our data, {len(un)} unmatched")
+    top = un[(un["pts"].fillna(0) >= 30) | (un["price"] >= 6)].sort_values("price", ascending=False)
+    print("  unmatched pool players (pts>=30 or price>=6M):", "; ".join(f"{r['name']} ({r['grp']}/{r['hemi']}, {r['price']}M, {int(r['pts'] or 0)}pts)" for _, r in top.head(40).iterrows()))
+    d = pd.DataFrame([{"exp": float(np.mean(p["exp"])), "pts": p["poolPts"], "price": p["price"]} for p in P if p.get("poolPts") is not None and p["poolPts"] > 0])
+    if len(d) > 10:
+        print(f"  rank correlation, projected points/round vs the game's own points so far (n={len(d)}): {d['exp'].corr(d['pts'], method='spearman'):.2f}; vs price: {d['exp'].corr(d['price'], method='spearman'):.2f}")
 
 
 def main() -> None:
@@ -75,7 +89,32 @@ def main() -> None:
         notes.append("Named lineups used for: " + ", ".join(f"R{k[0]} {k[1]}" for k in sorted(lm)) + (f" ({ls['without_history']} players without history use position averages)" if ls["without_history"] else "") + ".")
     else:
         notes.append("No lineups named yet: starters are predicted from recent selection.")
-    res = project(hist, pos, fx["fixtures"], R, asof, ov, scope_teams=set(comp["teams"]), lineup_map=lm)
+    pool, mp, only = None, {}, None
+    if comp.get("pool") and (ROOT / comp["pool"]).exists():
+        pool = load_pool(ROOT / comp["pool"])
+        mp, pinfo = match_history(hist, pool, comp["hemisphere"], pos)
+        for pid, ix in mp.items():
+            pos[pid] = pool.loc[ix, "grp"]                 # the game's own position slot decides where a player can be picked
+        only = set(mp)
+        notes.append(f"Official player pool: {len(mp)} history players matched to {len(pool)} game players (others are not in the game and are excluded).")
+    res = project(hist, pos, fx["fixtures"], R, asof, ov, scope_teams=set(comp["teams"]), lineup_map=lm, only_pids=only)
+    if pool is not None:
+        used = set(mp.values())
+        keep = []
+        for p in res["players"]:
+            ix = mp.get(p["id"])
+            if ix is None and p.get("priceEst"):           # lineup debutants (no history): try the pool by name
+                ix = match_one(pool, used, p["name"], p["team"], comp["hemisphere"], None)
+                if ix is not None:
+                    used.add(ix)
+            if ix is None:
+                continue
+            row = pool.loc[ix]
+            p["price"], p["priceEst"], p["own"], p["poolPts"], p["poolName"] = float(row["price"]), False, float(row["own_pct"]), (None if pd.isna(row["pts"]) else float(row["pts"])), row["name"]
+            p["pos"] = row["grp"]
+            keep.append(p)
+        res["players"] = keep
+        pool_report(res, pool, used)
     for w in save_snapshots(res, fx["fixtures"], key, asof, a.snapshots):
         notes.append(f"Snapshot taken: {w}")
     # official prices, once published: config/prices.csv with columns id,price (Opta player id)

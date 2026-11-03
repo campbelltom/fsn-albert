@@ -8,7 +8,7 @@ import pandas as pd
 
 
 def surname(name: str | None) -> str:
-    n = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode().lower()
+    n = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode().lower().replace("'", "").replace("`", "")
     toks = [t for t in re.sub(r"[^a-z\- ]", " ", n).split() if len(t) > 1]
     return toks[-1] if toks else ""
 

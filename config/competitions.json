@@ -35,7 +35,8 @@
     "Japan": "S",
     "Fiji": "S"
    },
-   "espn_league": 17567
+   "espn_league": 17567,
+   "pool": "config/nc_pool.csv"
   },
   "six-nations": {
    "label": "Six Nations 2027",
