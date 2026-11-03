@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel import model  # noqa: E402
 from fsnmodel.common import load_json  # noqa: E402
-from fsnmodel.data import load_matches  # noqa: E402
+from fsnmodel.data import load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.evaluate import compare, walk_forward  # noqa: E402
 
 VARIANTS = [
@@ -37,10 +37,12 @@ def main() -> None:
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--skip", type=int, default=4, help="skip the first N rounds of each competition (little history)")
+    ap.add_argument("--no-lineups", action="store_true", help="predict starters instead of using the named 23")
     a = ap.parse_args()
     R = load_json(a.rules)
     ov = load_json(ROOT / "config" / "overrides.json", {})
     hist = load_matches(*[d for d in (a.rfu, a.espn) if Path(d).exists()], tackles_include_missed=R["assumptions"]["tackles_include_missed"])
+    R, _ = with_measured_scrums(R, hist) if not hist.empty else (R, None)
     per = hist.drop_duplicates("match_key")["competition"].value_counts()
     comps = [c for c, n in per.items() if n >= 12]
     rows = []
@@ -49,7 +51,7 @@ def main() -> None:
         model.PARAMS.update(base); model.PARAMS.update(ch)
         parts = []
         for c in comps:
-            df, _ = walk_forward(hist, R, c, ov, min_rounds_before=a.skip)
+            df, _ = walk_forward(hist, R, c, ov, min_rounds_before=a.skip, use_lineups=not a.no_lineups)
             if not df.empty:
                 df["comp"] = c; df["round"] = df["comp"] + df["round"].astype(str)
                 parts.append(df)

@@ -9,14 +9,15 @@ import math
 import numpy as np
 import pandas as pd
 
-from .common import FORWARDS, POSITIONS
+from .common import BENCH_POS, FORWARDS, POSITIONS, SHIRT_POS
 from .data import MATCH_MIN
-from .scoring import COMPONENTS, points_from_stats
+from .scoring import COMPONENTS, points_from_stats, scrums_for
 
 HALF_LIFE_DAYS = 420.0       # player form
 TEAM_HALF_LIFE = 540.0       # team strength
 K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0, "tw": 6.0, "ls": 10.0,
-          "pc": 6.0, "yc": 40.0, "rc": 80.0, "conv": 3.0, "pen": 3.0, "dg": 20.0}
+          "pc": 6.0, "yc": 40.0, "rc": 80.0, "conv": 3.0, "pen": 3.0, "dg": 20.0,
+          "offloads": 4.0, "cb": 5.0, "missed": 4.0, "lw": 4.0, "err": 5.0}
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
 PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5}   # tuned on 2023-26 walk-forward backtests   # tunable (scripts/tune.py)
@@ -100,6 +101,15 @@ class PlayerModel:
         self.start_min = {p: self._m(gs[gs["pos"] == p]["minutes"], 65.0) for p in POSITIONS}
         gb = a[~a["started"]]
         self.sub_min = {p: self._m(gb[gb["pos"] == p]["minutes"], 22.0) for p in POSITIONS}
+        # who comes on from the bench, by shirt number (16-23): probability and minutes
+        bn = h[h["shirt"].fillna(0) >= 16]
+        allon = bn[bn["minutes"] > 0]
+        self.bench_on, self.bench_min = {}, {}
+        for sh in range(16, 24):
+            g = bn[bn["shirt"] == sh]
+            on = g[g["minutes"] > 0]
+            self.bench_on[sh] = float(len(on) / len(g)) if len(g) >= 8 else (float(len(allon) / len(bn)) if len(bn) else 0.8)
+            self.bench_min[sh] = float(on["minutes"].mean()) if len(on) >= 5 else (float(allon["minutes"].mean()) if len(allon) else 22.0)
         # TW (turnovers won) can be missing for fallback data: use the matches that have it
         self.tw_known = h["tw"].notna().any()
 
@@ -111,7 +121,8 @@ class PlayerModel:
     @staticmethod
     def _cols() -> dict:
         return {"tries": "tries", "assists": "assists", "metres": "metres", "db": "db", "tackles": "tackles", "tw": "tw",
-                "ls": "ls", "pc": "pc", "yc": "yc", "rc": "rc", "conv": "conv", "pen": "pen", "dg": "dg"}
+                "ls": "ls", "pc": "pc", "yc": "yc", "rc": "rc", "conv": "conv", "pen": "pen", "dg": "dg",
+                "offloads": "offloads", "cb": "cb", "missed": "missed", "lw": "lw", "err": "err"}
 
     # ---- availability
     def appearance(self, pid: str, team: str, pos: str, n_team_matches: int = 10) -> dict:
@@ -166,7 +177,7 @@ class PlayerModel:
 
 
 def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dict, asof: pd.Timestamp,
-            overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None) -> dict:
+            overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None, lineup_map: dict | None = None) -> dict:
     """Returns {players: [...], rounds: [...]} ready for export. scope_teams: only players whose current team is in it (None = everyone)."""
     overrides = overrides or {}
     tm = TeamModel(hist, asof)
@@ -188,6 +199,12 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         age = (asof - r["date"]).days
         if age <= max_age_days or pid in include:
             cand.append(pid)
+    lineup_map = lineup_map or {}
+    extras = {}
+    for (rd_, tm_), mp_ in lineup_map.items():
+        for pid_, (sh_, nm_) in mp_.items():
+            if pid_ not in latest.index and pid_ not in extras:
+                extras[pid_] = (nm_, tm_, sh_)
     rounds = sorted({f["round"] for f in fixtures})
     by_round_team = {}
     for f in fixtures:
@@ -195,15 +212,23 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         by_round_team[(f["round"], f["away"])] = (f["home"], False, f)
 
     players = []
-    for pid in cand:
-        r = latest.loc[pid]
-        team = ov.get(pid, {}).get("team", r["team"])
-        p = ov.get(pid, {}).get("pos") or pos[pid]
+    for pid in list(cand) + list(extras):
+        if pid in extras:
+            nm_, tm_, sh_ = extras[pid]
+            r = {"name": nm_, "team": tm_, "date": asof}
+            p = ov.get(pid, {}).get("pos") or (SHIRT_POS.get(sh_) if sh_ <= 15 else BENCH_POS.get(sh_)) or "BACK3"
+            team = tm_
+        else:
+            r = latest.loc[pid]
+            team = ov.get(pid, {}).get("team", r["team"])
+            p = ov.get(pid, {}).get("pos") or pos[pid]
         ap = pm.appearance(pid, team, p)
         rt, e80 = pm.rates(pid, p)
         avail = float(ov.get(pid, {}).get("availability", 1.0))
         flags = []
-        if ap["caps"] <= 2:
+        if ap["caps"] == 0:
+            flags.append("no data: position averages")
+        elif ap["caps"] <= 2:
             flags.append("few caps")
         if (asof - r["date"]).days > 300:
             flags.append("not seen for a while")
@@ -223,14 +248,26 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             ctx = PARAMS["ctx"]
             atk, dfm = atk ** ctx, dfm ** ctx
             mult = {"tries": atk, "assists": atk, "conv": atk, "pen": 1.0, "dg": 1.0, "metres": atk ** 0.5, "db": atk ** 0.5,
-                    "tackles": dfm ** 0.4, "tw": 1.0, "ls": 1.0, "pc": 1.0, "yc": 1.0, "rc": 1.0}
+                    "tackles": dfm ** 0.4, "missed": dfm ** 0.4, "tw": 1.0, "ls": 1.0, "pc": 1.0, "yc": 1.0, "rc": 1.0,
+                    "offloads": atk ** 0.5, "cb": atk ** 0.5, "lw": 1.0, "err": 1.0}
             w_, d_, l_ = tm.p_win(team, opp) if is_home else tuple(reversed(tm.p_win(opp, team)))
             ps, pb = ap["p_start"] * avail, ap["p_sub"] * avail
             em_start, em_sub = ap["min_start"], ap["min_sub"]
+            ln = None
+            lm = lineup_map.get((rd, team))
+            if lm is not None:                       # the team's 23 are named: no need to predict who starts
+                ent = lm.get(pid)
+                if ent is None:
+                    ln, ps, pb = "X", 0.0, 0.0
+                elif ent[0] <= 15:
+                    ln, ps, pb = "S", 1.0 * avail, 0.0
+                else:
+                    ln, ps, pb = "B", 0.0, pm.bench_on.get(ent[0], 0.85) * avail
+                    em_sub = pm.bench_min.get(ent[0], em_sub)
             exp_min = ps * em_start + pb * em_sub
             # points if the player starts / comes off the bench (per-80 rates x minutes x context)
             def stat_line(mins: float) -> dict:
-                return {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN}
+                return {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN, "scrums": scrums_for(p, mins, R)}
             ls_, lb_ = stat_line(em_start), stat_line(em_sub)
             cs = points_from_stats(ls_, p, R, floor_metres=False)
             cb = points_from_stats(lb_, p, R, floor_metres=False)
@@ -243,7 +280,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             comp["team"] = (ps * em_start + pb * em_sub) / MATCH_MIN * win_draw
             comp["potm"] = 0.0   # filled below once the whole squad is known
             pst_r.append(ps)
-            es_r.append((es, eb, w_, ps, pb, opp, is_home, f, exp_min))
+            es_r.append((es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln))
             comp_round.append(comp)
             per_round.append(0.0)
             sup_round.append(0.0)
@@ -276,7 +313,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             raw = pl["raw"][ri]
             if not isinstance(raw, tuple):
                 exps.append(0.0); sups.append(0.0); comps.append({k: 0.0 for k in COMPONENTS}); continue
-            es, eb, w_, ps, pb, opp, is_home, f, exp_min = raw
+            es, eb, w_, ps, pb, opp, is_home, f, exp_min, ln = raw
             total = sum(c.values())
             S = R["supersub"]
             # value if nominated supersub: x3 when he comes on, x0.5 when he starts / does not come on
@@ -285,13 +322,13 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         fixtures_p = []
         for ri, rd in enumerate(rounds):
             raw = pl["raw"][ri]
-            fixtures_p.append(None if not isinstance(raw, tuple) else {"opp": raw[5], "home": raw[6]})
+            fixtures_p.append(None if not isinstance(raw, tuple) else {"opp": raw[5], "home": raw[6], "ln": raw[9]})
         out_players.append(dict(id=pl["pid"], name=pl["name"], team=pl["team"], pos=pl["pos"], caps=pl["caps"],
                                 pStart=round(pl["p_start"], 3), pSub=round(pl["p_sub"], 3),
                                 eMin=round(sum(r_[8] for r_ in pl["raw"] if isinstance(r_, tuple)) / max(1, sum(isinstance(r_, tuple) for r_ in pl["raw"])), 1),
                                 flags=pl["flags"], exp=exps, sup=sups, comp=comps, fx=fixtures_p))
     # estimated stars (official prices are not published until the game opens): rank-based, top = 20
-    _estimate_prices(out_players)
+    _estimate_prices(out_players, rules)
     rd_info = []
     for rd in rounds:
         ms = []
@@ -307,13 +344,16 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     return {"players": sorted(out_players, key=lambda x: -sum(x["exp"])), "rounds": rd_info, "teams": teams}
 
 
-def _estimate_prices(players: list[dict]) -> None:
-    """Estimated stars (official prices are not published until the game opens): linear in the percentile of average projected points,
-    4 at the bottom and 20 at the top, so a full squad of stars does not fit a 230-star budget."""
+def _estimate_prices(players: list[dict], rules: dict | None = None) -> None:
+    """Estimated prices (official ones are not published until the game opens): linear in the percentile of average projected points.
+    Stars game: 4..20. Money game: squad.price_min..price_max (e.g. 3.0M..10.0M), so a squad of stars does not fit the budget."""
     if not players:
         return
+    sq = (rules or {}).get("squad", {})
+    lo, hi, unit = sq.get("price_min", 4), sq.get("price_max", 20), sq.get("price_unit", "star")
     avg = np.array([np.mean(p["exp"]) for p in players])
     q = avg.argsort().argsort() / max(1, len(avg) - 1)
     for p, qi in zip(players, q):
-        p["price"] = int(round(4 + 16 * qi))
+        v = lo + (hi - lo) * qi
+        p["price"] = round(v, 1) if unit == "M" else int(round(v))
         p["priceEst"] = True

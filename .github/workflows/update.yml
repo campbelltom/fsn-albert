@@ -48,6 +48,9 @@ jobs:
       - name: ESPN results (fills anything not in data/rfu)
         run: python scripts/scrape_espn.py --from 2023 --to 2027 --out data/espn
         continue-on-error: true
+      - name: Named lineups (ESPN rosters; appear ~48h before kick-off)
+        run: python scripts/fetch_lineups.py
+        continue-on-error: true
       - name: Run model
         env:
           FSN_SITE_PASSWORD: ${{ secrets.FSN_SITE_PASSWORD }}

@@ -1,29 +1,43 @@
 {
-  "version": "Assumed = 2025 Six Nations rules (Nations Championship fantasy rules not confirmed)",
+  "version": "Official Nations Championship Fantasy (from the game's rules page, 3 Nov 2026)",
   "points": {
-    "try_forward": 15,
-    "try_back": 10,
-    "assist": 4,
+    "try_forward": 12,
+    "try_back": 12,
+    "assist": 5,
     "conversion": 2,
+    "missed_conversion": -1,
     "penalty": 3,
+    "missed_penalty": -1,
     "drop_goal": 5,
+    "fifty22": 2,
     "defender_beaten": 2,
+    "offload": 2,
+    "line_break": 3,
     "metres_per_point": 10,
-    "fifty22": 7,
     "tackle": 1,
-    "breakdown_steal": 5,
-    "lineout_steal": 7,
-    "penalty_conceded": -1,
+    "tackle_missed": -1,
+    "breakdown_steal": 4,
+    "interception": 5,
+    "lineout_won": 1,
+    "lineout_steal": 5,
+    "scrum_won": 2,
     "potm": 15,
-    "yellow": -3,
-    "red": -6,
+    "penalty_conceded": -1,
+    "error": -1,
+    "lineout_error": -2,
+    "yellow": -5,
+    "red": -10,
     "win": 0,
     "draw": 0
   },
   "squad": {
-    "budget": 230,
-    "max_per_nation": 4,
+    "budget": 100,
+    "max_per_nation": 3,
+    "max_per_hemisphere": 10,
     "bench": 1,
+    "price_unit": "M",
+    "price_min": 3.0,
+    "price_max": 10.0,
     "xv": {
       "BACK3": 3,
       "CEN": 2,
@@ -36,6 +50,7 @@
     }
   },
   "captain_multiplier": 2,
+  "triple_captain_multiplier": 3,
   "supersub": {
     "on": 3.0,
     "off": 0.5
@@ -44,6 +59,9 @@
     "tackles_include_missed": true,
     "fifty22_per_80": 0.0,
     "potm_win_share": 0.85,
-    "match_minutes": 80
+    "match_minutes": 80,
+    "kick_miss_ratio": 0.2,
+    "scrums_won_per_match": 9.0,
+    "note": "No data for interceptions, 50:22 or lineout errors (0). Missed kicks are modelled as kick_miss_ratio misses per success. Front-row scrum points use scrums_won_per_match x minutes share until scrum data is scraped. Errors come from ESPN knock-ons, else half of RFU turnovers conceded."
   }
 }

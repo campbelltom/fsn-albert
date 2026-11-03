@@ -15,7 +15,7 @@ from scipy.sparse import lil_matrix
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def exact(players, rules, rounds, eps=0.02, budget=None):
+def exact(players, rules, rounds, eps=0.02, budget=None, hemisphere=None):
     n, R = len(players), len(rounds)
     budget = budget or rules["squad"]["budget"]
     # vars: xv[n], bn[n], cap[n*R], sub[n*R]
@@ -48,6 +48,14 @@ def exact(players, rules, rounds, eps=0.02, budget=None):
             if p["team"] == t:
                 d[ix_x(i)] = 1; d[ix_b(i)] = 1
         add(d, 0, rules["squad"]["max_per_nation"])
+    mh = rules["squad"].get("max_per_hemisphere")
+    if hemisphere and mh:
+        for h in sorted(set(hemisphere.values())):
+            d = {}
+            for i, p in enumerate(players):
+                if hemisphere.get(p["team"]) == h:
+                    d[ix_x(i)] = 1; d[ix_b(i)] = 1
+            add(d, 0, mh)
     for k in range(R):
         add({ix_c(i, k): 1 for i in range(n)}, 1, 1)
         add({ix_s(i, k): 1 for i in range(n)}, 1, 1)
@@ -65,7 +73,7 @@ def exact(players, rules, rounds, eps=0.02, budget=None):
 def js_value(data_path, rounds):
     code = f"""
 const S=require('{ROOT}/site/squad.js'); const d=JSON.parse(require('fs').readFileSync('{data_path}','utf8'));
-const r=S.optimise(d.players,{{rules:d.rules,rounds:{json.dumps(rounds)},restarts:8,iters:30000}});
+const r=S.optimise(d.players,{{rules:d.rules,rounds:{json.dumps(rounds)},hemisphere:d.hemisphere,restarts:8,iters:30000}});
 console.log(JSON.stringify({{obj:r.objective,cost:r.cost,pts:r.points}}));"""
     return json.loads(subprocess.check_output(["node", "-e", code]).decode())
 
@@ -73,8 +81,9 @@ console.log(JSON.stringify({{obj:r.objective,cost:r.cost,pts:r.points}}));"""
 if __name__ == "__main__":
     path = sys.argv[1]
     d = json.load(open(path))
-    for rounds in ([0], [0, 1, 2], [0, 1, 2, 3, 4]):
-        ex, _ = exact(d["players"], d["rules"], rounds)
+    nR = len(d['players'][0]['exp'])
+    for rounds in ([0], list(range(min(3, nR))), list(range(nR))):
+        ex, _ = exact(d["players"], d["rules"], rounds, hemisphere=d.get("hemisphere"))
         js = js_value(path, rounds)
         gap = (ex - js["obj"]) / ex * 100
         print(f"rounds {rounds}: exact {ex:.2f}  annealer {js['obj']:.2f}  gap {gap:.3f}%  cost {js['cost']}")

@@ -30,6 +30,12 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
   (project each round from earlier matches only) and compares frozen snapshots with actual points; results appear in the Actions run summary.
 - `scripts/scrape_espn.py --discover` prints every ESPN rugby league id; add more (Rugby Championship, autumn series) to `config/espn_leagues.json` for more history.
 
+## Named lineups
+Rugby teams are named ~48h before kick-off, so starters are not predicted once a team is named: `scripts/fetch_lineups.py` reads ESPN rosters (and `config/lineups.json`
+can name a team by hand, surnames are enough). Starters (1-15) get full minutes from their own history, bench players get a probability of coming on and minutes by shirt
+number (measured from history), players left out of the 23 score 0, and debutants with no history use position averages. Before a team is named the model falls back to
+predicting selection from recent matches. The backtest reports both ways.
+
 ## Rules / config
 - `config/rules.json`: scoring (2025 official), squad shape, budget (245), max 4 per nation, captain and supersub multipliers. Edit and push; the site footer shows what is in force.
 - `config/fixtures_2027.json`: announced fixtures.

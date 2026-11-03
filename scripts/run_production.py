@@ -15,8 +15,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel.common import load_json  # noqa: E402
-from fsnmodel.data import assign_positions, assign_rounds, load_matches  # noqa: E402
+from fsnmodel.data import assign_positions, assign_rounds, load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.export import encrypt_json  # noqa: E402
+from fsnmodel.lineups import build_lineup_map, load_all  # noqa: E402
 from fsnmodel.evaluate import save_snapshots  # noqa: E402
 from fsnmodel.model import project  # noqa: E402
 
@@ -59,6 +60,9 @@ def main() -> None:
     if hist.empty:
         raise SystemExit("no match data found - run scripts/scrape_rfu.py first")
     hist = assign_rounds(hist)
+    R, scr_note = with_measured_scrums(R, hist)
+    if scr_note:
+        notes.append(scr_note)
     ov = load_json(ROOT / "config" / "overrides.json", {})
     pos = assign_positions(hist, ov)
     fx = load_json(ROOT / comp["fixtures"])
@@ -66,7 +70,12 @@ def main() -> None:
     if (hist["source"] == "espn").any():
         n = hist[hist["source"] == "espn"]["match_key"].nunique()
         notes.append(f"{n} historical match(es) came from the ESPN fallback: sub minutes estimated, no turnovers-won data.")
-    res = project(hist, pos, fx["fixtures"], R, asof, ov, scope_teams=set(comp["teams"]))
+    lm, ls = build_lineup_map(load_all([ROOT / "data" / "lineups"], ROOT / "config" / "lineups.json"), hist, fx["fixtures"])
+    if lm:
+        notes.append("Named lineups used for: " + ", ".join(f"R{k[0]} {k[1]}" for k in sorted(lm)) + (f" ({ls['without_history']} players without history use position averages)" if ls["without_history"] else "") + ".")
+    else:
+        notes.append("No lineups named yet: starters are predicted from recent selection.")
+    res = project(hist, pos, fx["fixtures"], R, asof, ov, scope_teams=set(comp["teams"]), lineup_map=lm)
     for w in save_snapshots(res, fx["fixtures"], key, asof, a.snapshots):
         notes.append(f"Snapshot taken: {w}")
     # official prices, once published: config/prices.csv with columns id,price (Opta player id)
@@ -85,7 +94,7 @@ def main() -> None:
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "season": fx["season"], "competition": comp["label"], "competitionKey": key, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
-        "rules": R, "notes": notes, **res,
+        "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
     }
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     if a.no_encrypt:

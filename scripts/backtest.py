@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel.common import load_json  # noqa: E402
-from fsnmodel.data import load_matches  # noqa: E402
+from fsnmodel.data import load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.evaluate import evaluate_snapshots, report, walk_forward  # noqa: E402
 
 
@@ -28,6 +28,7 @@ def main() -> None:
     ov = load_json(ROOT / "config" / "overrides.json", {})
     dirs = [d for d in (a.rfu, a.espn) if Path(d).exists()]
     hist = load_matches(*dirs, tackles_include_missed=R["assumptions"]["tackles_include_missed"])
+    R, _ = with_measured_scrums(R, hist) if not hist.empty else (R, None)
     out = []
     if hist.empty:
         out.append("No match data.")
@@ -39,7 +40,9 @@ def main() -> None:
             out.append("No competition has enough matches with player stats to backtest yet.\n")
         for c in comps:
             df, info = walk_forward(hist, R, c, ov)
-            out.append(report(df, info, f"Walk-forward: {c}"))
+            out.append(report(df, info, f"Walk-forward: {c} (starters predicted)"))
+            dl, il = walk_forward(hist, R, c, ov, use_lineups=True)
+            out.append(report(dl, il, f"Walk-forward: {c} (with named lineups, as in real use)"))
         if Path(a.snapshots).exists() and any(Path(a.snapshots).glob("*.json")):
             sd, si = evaluate_snapshots(a.snapshots, hist, R, ov)
             out.append(report(sd, si, "Frozen pre-round snapshots vs actual"))

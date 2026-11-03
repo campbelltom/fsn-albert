@@ -20,7 +20,22 @@
    ],
    "fixtures": "config/fixtures_nc2026.json",
    "rules": "config/rules_nc.json",
-   "season": 2026
+   "season": 2026,
+   "hemisphere": {
+    "England": "N",
+    "France": "N",
+    "Ireland": "N",
+    "Italy": "N",
+    "Scotland": "N",
+    "Wales": "N",
+    "Argentina": "S",
+    "Australia": "S",
+    "New Zealand": "S",
+    "South Africa": "S",
+    "Japan": "S",
+    "Fiji": "S"
+   },
+   "espn_league": 17567
   },
   "six-nations": {
    "label": "Six Nations 2027",
@@ -35,7 +50,8 @@
    ],
    "fixtures": "config/fixtures_2027.json",
    "rules": "config/rules.json",
-   "season": 2027
+   "season": 2027,
+   "espn_league": 180659
   }
  }
 }

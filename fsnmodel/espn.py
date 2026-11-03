@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 BASE = "https://site.api.espn.com/apis/site/v2/sports/rugby/{lg}"
 MAP = {  # espn stat name -> RFU-style key
     "tries": "attack:T", "metres": "attack:M", "runs": "attack:C", "defendersBeaten": "attack:DB", "cleanBreaks": "attack:CB",
-    "passes": "attack:P", "offload": "attack:O", "turnoversConceded": "attack:TC", "tryAssists": "attack:TA", "points": "attack:PTS",
+    "passes": "attack:P", "offload": "attack:O", "turnoversConceded": "attack:TC", "turnoverKnockOn": "attack:TKO", "tryAssists": "attack:TA", "points": "attack:PTS",
     "tackles": "defence:Tackles Attempted", "missedTackles": "defence:MT",
     "kicks": "kicking:K", "conversionGoals": "kicking:C", "penaltyGoals": "kicking:PG", "dropGoalsConverted": "kicking:DG",
     "lineoutsWon": "setplay:LW", "lineoutWonSteal": "setplay:LS",
@@ -56,6 +56,12 @@ def parse_summary(summ: dict, ev: dict, competition: str = "Six Nations") -> dic
            "teams": [home, away], "players": [], "estimated_minutes": True, "tackles_made": True,
            "score": {"home": int(float(sides["home"]["score"])), "away": int(float(sides["away"]["score"])),
                      "homeName": home, "awayName": away} if played else None}
+    ts = {}
+    for t in summ.get("boxscore", {}).get("teams", []):
+        st = (t.get("statistics") or [{}])[0].get("stats", []) if t.get("statistics") else []
+        if st:
+            ts[t["team"]["displayName"]] = {s["name"]: float(s.get("value") or 0) for s in st if s.get("name")}
+    out["team_stats"] = ts
     for blk in summ.get("boxscore", {}).get("players", []):
         team = blk["team"]["displayName"]
         if not blk.get("statistics"):
@@ -82,8 +88,10 @@ def fetch_season(year: int, out_dir, league: int, competition: str) -> int:
     n_diag = [0]
     for ev in events(year, league):
         f = out_dir / f"{league}_{ev['id']}.json"
-        if f.exists() and json.loads(f.read_text()).get("score"):
-            continue
+        if f.exists():
+            old = json.loads(f.read_text())
+            if old.get("score") and "team_stats" in old:
+                continue                                   # finished and already in the current format
         try:
             summ = _get(f"{BASE.format(lg=league)}/summary?event={ev['id']}")
             m = parse_summary(summ, ev, competition)

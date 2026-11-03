@@ -40,16 +40,19 @@
     return v;
   }
 
-  function penalty(team, rules, budget) {
-    let cost = 0; const nat = {};
-    for (const p of team) { cost += p.price; nat[p.team] = (nat[p.team] || 0) + 1; }
-    let pen = Math.max(0, cost - budget) * 40;
-    for (const k in nat) pen += Math.max(0, nat[k] - rules.squad.max_per_nation) * 200;
+  function penalty(team, rules, budget, hemi, K) {
+    // K = { lam: penalty per unit of overspend, big: penalty per player over a nation/hemisphere limit }, scaled to the pool's value so it works for any price scale
+    let cost = 0; const nat = {}, hm = {};
+    for (const p of team) { cost += p.price; nat[p.team] = (nat[p.team] || 0) + 1; if (hemi) hm[hemi[p.team]] = (hm[hemi[p.team]] || 0) + 1; }
+    let pen = Math.max(0, cost - budget) * K.lam;
+    for (const k in nat) pen += Math.max(0, nat[k] - rules.squad.max_per_nation) * K.big;
+    if (hemi && rules.squad.max_per_hemisphere) for (const k in hm) pen += Math.max(0, hm[k] - rules.squad.max_per_hemisphere) * K.big;
     return { pen, cost };
   }
 
   function optimise(players, opts) {
-    const rules = opts.rules, rounds = opts.rounds, budget = opts.budget ?? rules.squad.budget;
+    const rules = opts.captainMult ? Object.assign({}, opts.rules, { captain_multiplier: opts.captainMult }) : opts.rules;
+    const rounds = opts.rounds, budget = opts.budget ?? rules.squad.budget, hemi = opts.hemisphere || null;
     const keep = new Set(opts.keep || []), ban = new Set(opts.ban || []);
     const eps = opts.eps ?? 0.02;
     const slots = slotList(rules);
@@ -58,6 +61,8 @@
     for (const p of pool) (byPos[p.pos] = byPos[p.pos] || []).push(p);
     const cand = slot => slot === 'BENCH' ? pool : (byPos[slot] || []);
     const total = p => rounds.reduce((a, r) => a + p.exp[r], 0);
+    const ratios = pool.map(p => total(p) / p.price).sort((a, b) => a - b);
+    const K = { lam: 2.5 * (ratios[Math.floor(ratios.length * 0.75)] || 1), big: 3 * Math.max(1, ...pool.map(total)) };
     const rng = mulberry(opts.seed ?? 12345);
     const restarts = opts.restarts ?? 8, iters = opts.iters ?? 30000;
     const keepers = pool.filter(p => keep.has(p.id));
@@ -80,9 +85,9 @@
         team[i] = c[Math.min(c.length - 1, Math.floor(rng() * Math.min(6, c.length)))];
         used.add(team[i].id);
       }
-      const score = t => { const e = penalty(t, rules, budget); return evaluate(t, slots, rounds, rules, eps) - e.pen; };
+      const score = t => { const e = penalty(t, rules, budget, hemi, K); return evaluate(t, slots, rounds, rules, eps) - e.pen; };
       let cur = score(team);
-      let T0 = 4, T1 = 0.02;
+      let T0 = 0.15 * (Math.max(1, ...pool.map(total)) / Math.max(1, rounds.length)) , T1 = 0.02 * rounds.length;
       const free = slots.map((_, i) => i).filter(i => !frozen[i]);
       let bestLocal = null, bestLocalScore = -1e18;
       for (let it = 0; it < iters; it++) {
@@ -106,7 +111,7 @@
           const sc = score(nt), d = sc - cur;
           if (d >= 0 || rng() < Math.exp(d / T)) { team[i] = nt[i]; team[j] = nt[j]; cur = sc; }
         }
-        const e = penalty(team, rules, budget);
+        const e = penalty(team, rules, budget, hemi, K);
         if (e.pen === 0 && cur > bestLocalScore) { bestLocalScore = cur; bestLocal = team.slice(); }
       }
       if (bestLocal && (!best || bestLocalScore > best.score)) best = { team: bestLocal, score: bestLocalScore };

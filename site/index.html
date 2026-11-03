@@ -64,6 +64,7 @@ select.sel{height:34px;border:0;border-radius:10px;background:var(--card);paddin
 .l2 b{color:var(--ink);font-weight:600}
 .chip{font:700 .6rem/1 var(--num);padding:3px 4px;flex:none;border-radius:5px;background:var(--p);color:var(--on-pos);letter-spacing:.02em}
 .flag{font:600 .66rem/1 var(--body);padding:2px 5px;border-radius:5px;border:1px solid currentColor;flex:none;color:var(--warn)}
+.flag.ln-S{color:var(--good)} .flag.ln-B{color:var(--warn)} .flag.ln-X{color:var(--bad)}
 .strip{display:flex;align-items:flex-end;gap:3px;height:22px}
 .strip i{flex:1;background:var(--p);border-radius:2px 2px 0 0;min-height:2px}
 .strip i.sel{outline:2px solid var(--ink);outline-offset:1px}
@@ -149,7 +150,7 @@ footer p{margin:0 0 6px}
         <span>Show</span><span class="seg" id="scope"></span>
         <span class="sp"></span>
         <select class="sel" id="teamSel" aria-label="Nation"></select>
-        <select class="sel" id="sortSel" aria-label="Sort"><option value="pts">Points</option><option value="val">Points per ★</option><option value="price">Price</option></select>
+        <select class="sel" id="sortSel" aria-label="Sort"><option value="pts">Points</option><option value="val">Points per price</option><option value="price">Price</option></select>
       </div>
     </div>
   </div></div>
@@ -159,7 +160,8 @@ footer p{margin:0 0 6px}
     <section id="tabSquad" hidden>
       <div class="sqctl">
         <label>Horizon<select id="sqScope"></select></label>
-        <label>Budget ★<input id="sqBudget" type="number" min="100" max="400" step="1"></label>
+        <label>Budget<input id="sqBudget" type="number" min="50" max="400" step="0.5"></label>
+        <label>Triple captain<select id="sqTriple"><option value="0">Off</option><option value="1">On</option></select></label>
         <button class="btn primary" id="sqGo" style="height:40px">Pick best squad</button>
         <button class="btn" id="sqClear" style="height:40px">Clear keeps/bans</button>
       </div>
@@ -183,12 +185,14 @@ footer p{margin:0 0 6px}
 'use strict';
 const $ = s => document.querySelector(s);
 const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
-const POS_LABEL = {BACK3:'Back 3',CEN:'Centre',FH:'Fly-half',SH:'Scrum-half',BR:'Back row',LOCK:'Lock',PROP:'Prop',HOOK:'Hooker'};
+const POS_LABEL = {BACK3:'Back 3',CEN:'Centre',FH:'Fly-half',SH:'Scrum-half',BR:'Loose fwd',LOCK:'Lock',PROP:'Prop',HOOK:'Hooker'};
+const money = v => (window.D && D.rules.squad.price_unit === 'M') ? Number(v).toFixed(1) + 'M' : v + '★';
+const unit = () => (D.rules.squad.price_unit === 'M' ? 'M' : '★');
 const POS_SHORT = {BACK3:'B3',CEN:'C',FH:'FH',SH:'SH',BR:'BR',LOCK:'L',PROP:'P',HOOK:'H'};
 const LINES = [['BACK3','CEN','FH','SH'],['BR','LOCK','PROP','HOOK']];
 const COMP_LABEL = {tries:'Tries',assists:'Try assists',kicking:'Kicking',carrying:'Carries & breaks',tackles:'Tackles',steals:'Turnovers & steals',discipline:'Discipline',potm:'Player of the match',team:'Team result'};
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-let D = null, state = { pos:'ALL', team:'ALL', scope:'next', sort:'pts', q:'', open:null };
+window.D = null; let state = { pos:'ALL', team:'ALL', scope:'next', sort:'pts', q:'', open:null };
 let keep = new Set(JSON.parse(store.get('fsn.keep')||'[]')), ban = new Set(JSON.parse(store.get('fsn.ban')||'[]'));
 const saveLists = () => { store.set('fsn.keep', JSON.stringify([...keep])); store.set('fsn.ban', JSON.stringify([...ban])); };
 
@@ -243,6 +247,7 @@ function start(data){
   // squad controls
   $('#sqScope').innerHTML = D.rounds.map((r,i) => `<option value="${i}">Round ${r.round}</option>`).join('') + (nR > 3 ? '<option value="first3">Rounds '+r0+'–'+D.rounds[2].round+'</option>' : '') + '<option value="all" selected>All rounds</option>';
   $('#sqBudget').value = D.rules.squad.budget;
+  if (!D.rules.triple_captain_multiplier) $('#sqTriple').parentElement.hidden = true;
   $('#sqGo').onclick = runSquad;
   $('#sqClear').onclick = () => { keep.clear(); ban.clear(); saveLists(); renderList(); renderLists(); };
   renderFixtures(); renderFoot(); renderList(); renderLists();
@@ -265,14 +270,15 @@ function renderList(){
   $('#list').innerHTML = L.map(p => {
     const t = total(p, rs);
     const bars = p.exp.map((x,i) => `<i class="${rs.includes(i)?'sel':''}" style="height:${Math.max(2, x/maxR*100)}%"></i>`).join('');
-    const fl = p.flags.slice(0,2).map(f => `<span class="flag">${f}</span>`).join('');
+    const f0 = p.fx[rs[0]], LN = {S:'Starting',B:'Bench',X:'Not in 23'};
+    const fl = (f0 && f0.ln ? `<span class="flag ln-${f0.ln}">${LN[f0.ln]}</span>` : '') + p.flags.slice(0,1).map(f => `<span class="flag">${f}</span>`).join('');
     const tag = keep.has(p.id) ? ' ✓' : ban.has(p.id) ? ' ✕' : '';
     return `<article class="item p-${p.pos} ${state.open===p.id?'open':''}" data-id="${p.id}">
       <button class="row" aria-expanded="${state.open===p.id}">
         <span><span class="l1"><span class="chip">${POS_SHORT[p.pos]}</span><span class="nm">${p.name}${tag}</span>${fl}</span>
-          <span class="l2"><b>${p.team}</b><span>·</span><span>${p.price}★${p.priceEst?'*':''}</span><span>·</span><span>${Math.round(p.pStart*100)}% start</span></span></span>
+          <span class="l2"><b>${p.team}</b><span>·</span><span>${money(p.price)}${p.priceEst?'*':''}</span><span>·</span><span>${Math.round(p.pStart*100)}% start</span></span></span>
         <span class="strip">${bars}</span>
-        <span class="tot"><div class="a">${fmt(t)}</div><div class="b">${fmt(t/p.price,2)}/★</div></span>
+        <span class="tot"><div class="a">${fmt(t)}</div><div class="b">${fmt(t/p.price,2)}/${unit()}</div></span>
       </button>
       <div class="dwrap"><div>${state.open===p.id ? detail(p, rs) : ''}</div></div></article>`;
   }).join('') || '<div class="empty">No players match.</div>';
@@ -281,10 +287,10 @@ function detail(p, rs){
   const comp = {}; rs.forEach(r => { for (const k in p.comp[r]) comp[k] = (comp[k]||0) + p.comp[r][k]; });
   const mx = Math.max(1, ...Object.values(comp).map(Math.abs));
   const rows = Object.keys(COMP_LABEL).map(k => { const v = comp[k]||0; return `<span>${COMP_LABEL[k]}</span><span class="bar"><span class="${v<0?'neg':''}" style="width:${Math.abs(v)/mx*100}%"></span></span><span class="t">${fmt(v)}</span>`; }).join('');
-  const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase() : '–'}</div></div>`; }).join('');
+  const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase()+(f.ln?' · '+f.ln:'') : '–'}</div></div>`; }).join('');
   return `<div class="detail">
     <div><h3>Round by round</h3><div class="gws">${gws}</div>
-      <div class="info">${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
+      <div class="info">${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
       <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep in squad'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
     <div><h3>Where the points come from</h3><div class="comp">${rows}</div></div></div>`;
 }
@@ -309,7 +315,7 @@ function runSquad(){
   $('#sqGo').disabled = true; $('#sqGo').textContent = 'Thinking…';
   setTimeout(() => {
     const t0 = performance.now();
-    const res = SQUAD.optimise(D.players, { rules: D.rules, rounds: rs, budget, keep: [...keep], ban: [...ban], restarts: 10, iters: 40000 });
+    const res = SQUAD.optimise(D.players, { rules: D.rules, rounds: rs, budget, keep: [...keep], ban: [...ban], hemisphere: D.hemisphere, captainMult: $('#sqTriple').value === '1' ? (D.rules.triple_captain_multiplier || 3) : 0, restarts: 10, iters: 40000 });
     $('#sqGo').disabled = false; $('#sqGo').textContent = 'Pick best squad';
     if (!res) { $('#sqView').innerHTML = '<div class="empty">No legal squad found: loosen the keeps or raise the budget.</div>'; $('#sqSum').innerHTML = ''; return; }
     drawSquad(res, rs, Math.round(performance.now()-t0));
@@ -318,8 +324,8 @@ function runSquad(){
 function drawSquad(res, rs, ms){
   const capCount = {}, subCount = {};
   res.perRound.forEach(r => { capCount[r.captain] = (capCount[r.captain]||0)+1; if (r.supersub) subCount[r.supersub] = (subCount[r.supersub]||0)+1; });
-  $('#sqSum').innerHTML = `<div class="sum"><div><b>${fmt(res.points)}</b><span>projected points (${rs.length} round${rs.length>1?'s':''}, captain + supersub)</span></div><div><b>${res.cost}★</b><span>of ${res.budget}★</span></div><div><b>${fmt(res.points/rs.length)}</b><span>per round</span></div></div>`;
-  const tile = (p, extra='') => { const t = total(p, rs); return `<div class="tile p-${p.pos}">${extra}<div class="n">${p.name}</div><div class="m">${p.team.slice(0,3).toUpperCase()} · ${p.price}★</div><div class="v">${fmt(t)}</div></div>`; };
+  $('#sqSum').innerHTML = `<div class="sum"><div><b>${fmt(res.points)}</b><span>projected points (${rs.length} round${rs.length>1?'s':''}, captain + supersub)</span></div><div><b>${money(res.cost)}</b><span>of ${money(res.budget)}</span></div><div><b>${fmt(res.points/rs.length)}</b><span>per round</span></div></div>`;
+  const tile = (p, extra='') => { const t = total(p, rs); return `<div class="tile p-${p.pos}">${extra}<div class="n">${p.name}</div><div class="m">${p.team.slice(0,3).toUpperCase()} · ${money(p.price)}</div><div class="v">${fmt(t)}</div></div>`; };
   const cap = Object.keys(capCount).sort((a,b) => capCount[b]-capCount[a])[0], sub = Object.keys(subCount).sort((a,b) => subCount[b]-subCount[a])[0];
   const lines = [['BACK3'],['CEN'],['FH','SH'],['BR'],['LOCK'],['PROP','HOOK']].map(g => {
     const ps = res.xv.filter(p => g.includes(p.pos)).sort((a,b) => g.indexOf(a.pos)-g.indexOf(b.pos));
@@ -337,9 +343,12 @@ function renderFixtures(){
     <div class="r">${m.away}<small>exp. ${fmt(m.xAway,0)} pts</small></div></div>`).join('')}</div>`).join('');
 }
 function renderFoot(){
-  const P = D.rules.points;
-  $('#foot').innerHTML = `<p>Scoring used: try ${P.try_forward} (forward) / ${P.try_back} (back), assist ${P.assist}, conversion ${P.conversion}, penalty ${P.penalty}, drop goal ${P.drop_goal}, defender beaten ${P.defender_beaten}, ${P.metres_per_point} m carried = 1, tackle ${P.tackle}, turnover won ${P.breakdown_steal}, lineout steal ${P.lineout_steal}, penalty conceded ${P.penalty_conceded}, yellow ${P.yellow}, red ${P.red}, player of the match ${P.potm}. Captain ×${D.rules.captain_multiplier}; supersub ×${D.rules.supersub.on} if he comes on, ×${D.rules.supersub.off} if not.</p>
-  <p>Squad: ${D.rules.squad.budget}★, ${Object.values(D.rules.squad.xv).reduce((a,b)=>a+b,0)} starters + ${D.rules.squad.bench} bench, max ${D.rules.squad.max_per_nation} per nation. Player of the match is a heuristic; 50:22 kicks are not in the source data. Squads are not always named in advance, so every player capped in the last year is shown.</p>
+  const P = D.rules.points, S = D.rules.squad;
+  const L = {try_forward:'try (forward)',try_back:'try (back)',assist:'try assist',conversion:'conversion',missed_conversion:'missed conversion',penalty:'penalty goal',missed_penalty:'missed penalty',drop_goal:'drop goal',fifty22:'50:22',defender_beaten:'defender beaten',offload:'offload',line_break:'line break',tackle:'tackle',tackle_missed:'missed tackle',breakdown_steal:'turnover won',interception:'interception',lineout_won:'own lineout won',lineout_steal:'lineout steal',scrum_won:'scrum won (front row)',potm:'player of the match',penalty_conceded:'penalty conceded',error:'handling error',lineout_error:'lineout error',yellow:'yellow card',red:'red card'};
+  const parts = Object.keys(L).filter(k => P[k]).map(k => (k==='try_forward' && P.try_forward===P.try_back ? 'try' : L[k]) + ' ' + (P[k]>0?'+':'') + P[k]).filter((v,i,a) => a.indexOf(v)===i);
+  const xv = Object.values(S.xv).reduce((a,b)=>a+b,0);
+  $('#foot').innerHTML = `<p>Scoring: ${parts.join(', ')}, ${P.metres_per_point} m gained +1. Captain ×${D.rules.captain_multiplier}${D.rules.triple_captain_multiplier ? ' (×'+D.rules.triple_captain_multiplier+' with the triple captain booster)' : ''}; super sub ×${D.rules.supersub.on} if he comes off the bench, ×${D.rules.supersub.off} if he starts, 0 if he does not play.</p>
+  <p>Squad: ${xv} starters + ${S.bench} super sub, budget ${money(S.budget)}, max ${S.max_per_nation} per nation${S.max_per_hemisphere ? ', max '+S.max_per_hemisphere+' per hemisphere' : ''}. Rules: ${D.rules.version}. Interceptions, 50:22s and lineout errors are not in the data; missed kicks, handling errors and front-row scrum points are approximated.</p>
   ${(D.notes||[]).map(n => `<p>${n}</p>`).join('')}`;
 }
 boot();

@@ -41,6 +41,33 @@ def test_pipeline_and_schema():
         assert p["pos"] in j["rules"]["squad"]["xv"] and 4 <= p["price"] <= 20
 
 
+def test_lineups_and_nc_scoring():
+    import subprocess
+    from make_fixture import make
+    from fsnmodel.common import load_json
+    R = load_json(ROOT / "config" / "rules_nc.json")
+    s = {"tries": 1, "assists": 1, "conv": 2, "pen": 1, "metres": 19, "db": 3, "tackles": 10, "missed": 2, "tw": 1, "ls": 1, "lw": 3, "pc": 1, "yc": 1, "offloads": 2, "cb": 1}
+    got = sum(points_from_stats(s, "FH", R).values())
+    want = 12 + 5 + 2 * (2 - 0.2) + (3 - 0.2) + 1 + 6 + 2 * 2 + 3 + 10 - 2 + 4 + 5 + 3 - 1 - 5
+    assert abs(got - want) < 1e-9, (got, want)
+    d = Path(tempfile.mkdtemp())
+    make(d / "rfu")
+    (d / "lineups").mkdir()
+    pl = [{"id": str(2000 + (2020 - 2000 if sh == 8 else 2008 - 2000 if sh == 20 else sh)), "name": f"Ire{sh}", "shirt": sh} for sh in range(1, 24)]
+    (d / "lineups" / "ire.json").write_text(json.dumps({"round": 1, "team": "Ireland", "players": pl}))
+    from fsnmodel.data import assign_positions, load_matches
+    from fsnmodel.lineups import build_lineup_map, load_all
+    from fsnmodel.model import project
+    import pandas as pd
+    hist = load_matches(d / "rfu")
+    fx = load_json(ROOT / "config" / "fixtures_2027.json")["fixtures"]
+    lm, _ = build_lineup_map(load_all([d / "lineups"]), hist, fx)
+    res = project(hist, assign_positions(hist), fx, rules(), pd.Timestamp("2026-06-01"), lineup_map=lm)
+    by = {p["id"]: p for p in res["players"]}
+    assert by["2020"]["fx"][0]["ln"] == "S" and by["2008"]["fx"][0]["ln"] == "B"
+    assert by["2020"]["exp"][0] > by["2008"]["exp"][0]
+
+
 def test_backtest_runs():
     import subprocess
     from make_fixture import make
@@ -52,5 +79,5 @@ def test_backtest_runs():
 
 
 if __name__ == "__main__":
-    test_backtest_runs(); 
+    test_lineups_and_nc_scoring(); test_backtest_runs(); 
     test_minutes(); test_scoring_2025(); test_pipeline_and_schema(); print("ok")

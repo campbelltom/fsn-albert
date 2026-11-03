@@ -12,16 +12,19 @@ import pandas as pd
 
 from .data import assign_positions
 from .model import project
-from .scoring import points_from_stats
+from .scoring import points_from_stats, scrums_for
 
-SCORE_COLS = ["tries", "assists", "metres", "db", "tackles", "tw", "ls", "pc", "yc", "rc", "conv", "pen", "dg"]
+SCORE_COLS = ["tries", "assists", "metres", "db", "tackles", "tw", "ls", "pc", "yc", "rc", "conv", "pen", "dg", "offloads", "cb", "missed", "lw", "err"]
 
 
 def actual_points(hist: pd.DataFrame, pos: pd.Series, rules: dict) -> pd.Series:
     out = []
     for r in hist.itertuples(index=False):
         s = {c: getattr(r, c) for c in SCORE_COLS}
-        out.append(sum(points_from_stats(s, pos.get(r.pid, "BACK3"), rules, floor_metres=True).values()))
+        p = pos.get(r.pid, "BACK3")
+        scr = getattr(r, "scr_won", float("nan"))
+        s["scrums"] = scrums_for(p, r.minutes, rules, team_scrums=None if scr != scr else scr)
+        out.append(sum(points_from_stats(s, p, rules, floor_metres=True).values()))
     return pd.Series(out, index=hist.index)
 
 
@@ -87,7 +90,7 @@ def compare(df: pd.DataFrame) -> dict:
     return out
 
 
-def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: dict | None = None, min_rounds_before: int = 0) -> tuple[pd.DataFrame, dict]:
+def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: dict | None = None, min_rounds_before: int = 0, use_lineups: bool = False) -> tuple[pd.DataFrame, dict]:
     """Project each round of `competition` from earlier matches only. Returns (rows, coverage info)."""
     comp = hist[hist["competition"] == competition]
     rds = rounds_of(comp)
@@ -106,7 +109,14 @@ def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: d
         if not fixtures:
             continue
         pos_past = assign_positions(past, overrides)
-        res = project(past, pos_past, fixtures, rules, start - pd.Timedelta(days=1), overrides)
+        lm = None
+        if use_lineups:                                   # the real named 23 of each team, as announced before the match
+            lm = {}
+            for t, g in cur.groupby("team"):
+                g = g[g["shirt"].notna()]
+                if len(g) >= 15:
+                    lm[(1, t)] = {r.pid: (int(r.shirt), r.name) for r in g.itertuples()}
+        res = project(past, pos_past, fixtures, rules, start - pd.Timedelta(days=1), overrides, lineup_map=lm)
         pr = _proj_to_rows(res)
         pts_past = actual_points(past, pos_past, rules)
         pr["base"] = pr["pid"].map(_baseline_recent(past, pts_past, pr["pid"], pr["team"]))

@@ -11,7 +11,8 @@ import pandas as pd
 from .common import BENCH_POS, SHIRT_POS, norm_team
 
 MATCH_MIN = 80
-STAT_COLS = ["tries", "assists", "metres", "carries", "db", "cb", "offloads", "tackles", "missed", "tw", "ls",
+ERR_FROM_TC = 0.5     # RFU has turnovers conceded, not knock-ons/forward passes: assume half are handling errors
+STAT_COLS = ["lw", "err", "tries", "assists", "metres", "carries", "db", "cb", "offloads", "tackles", "missed", "tw", "ls",
              "pc", "yc", "rc", "conv", "pen", "dg", "kicks"]
 
 
@@ -71,6 +72,7 @@ def match_rows(m: dict, est_minutes_start: float = 68.0, est_minutes_sub: float 
         else:
             mins, started = minutes_on_pitch(shirt, p.get("events"))
             est = False
+        scr = (m.get("team_stats") or {}).get(p.get("team"), {}).get("scrumsWon")
         tk = _g(s, "defence:Tackles Attempted")
         mt = _g(s, "defence:MT")
         made = tk if m.get("tackles_made") else tk  # decided below by rules flag (raw kept as attempted)
@@ -83,7 +85,8 @@ def match_rows(m: dict, est_minutes_start: float = 68.0, est_minutes_sub: float 
             db=_g(s, "attack:DB"), cb=_g(s, "attack:CB"), offloads=_g(s, "attack:O"), missed=mt,
             tw=_g(s, "defence:TW", np.nan), ls=_g(s, "setplay:LS"), pc=_g(s, "discipline:PC"),
             yc=_g(s, "discipline:YC"), rc=_g(s, "discipline:RC"), conv=_g(s, "kicking:C"), pen=_g(s, "kicking:PG"),
-            dg=_g(s, "kicking:DG"), kicks=_g(s, "kicking:K"), espn_pos=p.get("espn_pos"),
+            dg=_g(s, "kicking:DG"), kicks=_g(s, "kicking:K"), espn_pos=p.get("espn_pos"), lw=_g(s, "setplay:LW"), scr_won=scr if scr is not None else np.nan,
+            err=(_g(s, "attack:TKO") if "attack:TKO" in s else ERR_FROM_TC * _g(s, "attack:TC")),
         ))
     return rows
 
@@ -113,7 +116,8 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
         df["tackles"] = df["tackles_raw"]
     df = df.copy()
     df["match_key"] = df["date"].dt.strftime("%Y%m%d").fillna("nodate") + "_" + df[["team", "opp"]].apply(lambda r: "_".join(sorted(r)), axis=1)
-    return df.sort_values(["date", "match_key"]).reset_index(drop=True)
+    from .identity import resolve_ids
+    return resolve_ids(df.sort_values(["date", "match_key"]).reset_index(drop=True))
 
 
 def assign_positions(df: pd.DataFrame, overrides: dict | None = None) -> pd.Series:
@@ -152,3 +156,17 @@ def assign_rounds(df: pd.DataFrame) -> pd.DataFrame:
             rid[d] = r
         df.loc[g.index, "round"] = g["date"].map(rid).fillna(0).astype(int)
     return df
+
+
+def with_measured_scrums(R: dict, hist: pd.DataFrame, min_team_matches: int = 20) -> tuple[dict, str | None]:
+    """Replace the scrums_won_per_match placeholder by the measured average (team scrums won per match) when there is enough data."""
+    if "scr_won" not in hist or hist["scr_won"].notna().sum() == 0:
+        return R, None
+    t = hist.drop_duplicates(["match_key", "team"])
+    t = t[t["scr_won"].notna()]
+    if len(t) < min_team_matches:
+        return R, None
+    import copy
+    R2 = copy.deepcopy(R)
+    R2.setdefault("assumptions", {})["scrums_won_per_match"] = float(t["scr_won"].mean())
+    return R2, f"Scrums won per team per match measured from {len(t)} team-matches: {t['scr_won'].mean():.1f} (front-row scrum points use this)."
