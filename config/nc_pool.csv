@@ -1,4 +1,4 @@
-name,pos,hemi,own_pct,price,pts,c2,c3,c4,c5,c6,c7
+name,pos,hemi,own_pct,price,pts,tackles,metres,tries,assists,transfers_in,transfers_out
 W. Jordan,Back Three,S,45.0,8.5,189.0,21.0,233.0,6.0,1.0,287.0,74.0
 T. Attissogbe,Back Three,N,35.8,6.5,154.0,39.0,191.0,2.0,1.0,294.0,179.0
 I. Feyi-Waboso,Back Three,N,9.0,6.5,152.0,16.0,255.0,2.0,1.0,277.0,153.0

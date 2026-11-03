@@ -3,7 +3,8 @@
     python scripts/import_pool.py <pasted.txt> [--out config/nc_pool.csv]
 
 Each player is a block: name, name (truncated), position, hemisphere (N/S), then one tab-separated line
-'<ownership>%  <price>M  <pts>  <c2> ... <c7>'. The meaning of c2..c7 is not labelled in the paste (kept raw)."""
+'<ownership>%  <price>M  <points> <tackles> <metres> <tries> <assists> <transfers in> <transfers out>' (column order confirmed by the user;
+points, tackles, metres, tries and assists are the player's totals so far, i.e. the July rounds)."""
 from __future__ import annotations
 
 import argparse
@@ -33,7 +34,7 @@ def parse(text: str) -> list[dict]:
         nums = [float(x) if re.fullmatch(r"-?\d+(\.\d+)?", x.strip()) else None for x in nums]
         nums += [None] * (7 - len(nums))
         rows.append(dict(name=name, pos=pos, hemi=hemi, own_pct=float(m.group(1)), price=float(m.group(2)), pts=nums[0],
-                         c2=nums[1], c3=nums[2], c4=nums[3], c5=nums[4], c6=nums[5], c7=nums[6]))
+                         tackles=nums[1], metres=nums[2], tries=nums[3], assists=nums[4], transfers_in=nums[5], transfers_out=nums[6]))
     return rows
 
 
