@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from .common import FORWARDS, POSITIONS, SIX_NATIONS, TEAMS
+from .common import FORWARDS, POSITIONS
 from .data import MATCH_MIN
 from .scoring import COMPONENTS, points_from_stats
 
@@ -125,7 +125,7 @@ class PlayerModel:
         subon = np.array([float(gm["sub_on"].get(k, False)) if k in gm.index else 0.0 for k in window["match_key"]])
         prior_s = 0.12 if pos != "BACK3" else 0.10
         prior_b = 0.20
-        k = 2.0
+        k = 0.75                             # pseudo-matches of prior: a run of 10 starts should read ~0.95, one start ~0.6
         n = len(window)                      # shrink by match count, not by decayed weight
         sw = w_all.sum()
         avg_s = (started * w_all).sum() / sw if sw else 0.0
@@ -165,8 +165,8 @@ class PlayerModel:
 
 
 def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dict, asof: pd.Timestamp,
-            overrides: dict | None = None, max_age_days: int = 450) -> dict:
-    """Returns {players: [...], rounds: [...]} ready for export."""
+            overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None) -> dict:
+    """Returns {players: [...], rounds: [...]} ready for export. scope_teams: only players whose current team is in it (None = everyone)."""
     overrides = overrides or {}
     tm = TeamModel(hist, asof)
     pm = PlayerModel(hist, pos, asof, rules)
@@ -182,8 +182,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     for pid, r in latest.iterrows():
         if pid in exclude:
             continue
-        if ov.get(pid, {}).get("team", r["team"]) not in SIX_NATIONS:
-            continue                      # capped for another nation (or club-only): not on this site
+        if scope_teams is not None and ov.get(pid, {}).get("team", r["team"]) not in scope_teams:
+            continue                      # capped for another nation: not part of this competition
         age = (asof - r["date"]).days
         if age <= max_age_days or pid in include:
             cand.append(pid)
@@ -250,7 +250,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     # POTM heuristic: P(team wins) share-weighted by the squad's attacking output
     potm_share = R["assumptions"].get("potm_win_share", 0.85)
     for ri, rd in enumerate(rounds):
-        for team in TEAMS:
+        for team in sorted({f["home"] for f in fixtures} | {f["away"] for f in fixtures}):
             grp = [pl for pl in players if pl["team"] == team and isinstance(pl["raw"][ri], tuple)]
             if not grp:
                 continue
@@ -299,22 +299,18 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                            "pHome": round(w_ + d_ / 2, 3), "xHome": round(tm.expected_points(f["home"], f["away"], True), 1),
                            "xAway": round(tm.expected_points(f["away"], f["home"], False), 1)})
         rd_info.append({"round": rd, "matches": ms})
-    teams = {t: {"att": round(tm.att.get(t, 1.0), 3), "def": round(tm.dfn.get(t, 1.0), 3)} for t in TEAMS}
+    fteams = sorted({f["home"] for f in fixtures} | {f["away"] for f in fixtures})
+    teams = {t: {"att": round(tm.att.get(t, 1.0), 3), "def": round(tm.dfn.get(t, 1.0), 3)} for t in fteams}
     return {"players": sorted(out_players, key=lambda x: -sum(x["exp"])), "rounds": rd_info, "teams": teams}
 
 
 def _estimate_prices(players: list[dict]) -> None:
-    """Price in stars from average projected points: p10 -> 5, median -> 10, p100 -> 20, linear in percentile."""
+    """Estimated stars (official prices are not published until the game opens): linear in the percentile of average projected points,
+    4 at the bottom and 20 at the top, so a full squad of stars does not fit a 230-star budget."""
     if not players:
         return
     avg = np.array([np.mean(p["exp"]) for p in players])
-    order = avg.argsort().argsort() / max(1, len(avg) - 1)     # percentile 0..1
-    for p, q in zip(players, order):
-        if q <= 0.1:
-            price = 4 + 1 * (q / 0.1)
-        elif q <= 0.5:
-            price = 5 + 5 * ((q - 0.1) / 0.4)
-        else:
-            price = 10 + 10 * ((q - 0.5) / 0.5) ** 1.6
-        p["price"] = int(round(price))
+    q = avg.argsort().argsort() / max(1, len(avg) - 1)
+    for p, qi in zip(players, q):
+        p["price"] = int(round(4 + 16 * qi))
         p["priceEst"] = True

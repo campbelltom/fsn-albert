@@ -23,6 +23,13 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
 4. Context: attacking actions scale with the team's expected score in that fixture relative to its norm; tackles with the opposition's.
 5. Points under `config/rules.json`; captain x2 and supersub x3 / x0.5 handled in the squad builder.
 
+## Competitions, snapshots and evaluation
+- `config/competitions.json` picks the active competition (teams in scope, fixtures, rules). Now: **Nations Championship 2026** (rounds 4-6 projected; the three July
+  rounds are history). Switch `active` to `six-nations` for February 2027. The NC fantasy rules are not confirmed: `config/rules_nc.json` assumes the 2025 Six Nations rules.
+- Each run freezes a projection snapshot per round until its first fixture date (`data/snapshots`, cached between runs). `scripts/backtest.py` runs a walk-forward backtest
+  (project each round from earlier matches only) and compares frozen snapshots with actual points; results appear in the Actions run summary.
+- `scripts/scrape_espn.py --discover` prints every ESPN rugby league id; add more (Rugby Championship, autumn series) to `config/espn_leagues.json` for more history.
+
 ## Rules / config
 - `config/rules.json`: scoring (2025 official), squad shape, budget (245), max 4 per nation, captain and supersub multipliers. Edit and push; the site footer shows what is in force.
 - `config/fixtures_2027.json`: announced fixtures.

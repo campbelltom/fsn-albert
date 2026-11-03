@@ -14,9 +14,10 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from fsnmodel.common import load_json, rules  # noqa: E402
+from fsnmodel.common import load_json  # noqa: E402
 from fsnmodel.data import assign_positions, assign_rounds, load_matches  # noqa: E402
 from fsnmodel.export import encrypt_json  # noqa: E402
+from fsnmodel.evaluate import save_snapshots  # noqa: E402
 from fsnmodel.model import project  # noqa: E402
 
 
@@ -43,11 +44,15 @@ def main() -> None:
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--out", default=str(ROOT / "site" / "data"))
-    ap.add_argument("--fixtures", default=str(ROOT / "config" / "fixtures_2027.json"))
+    ap.add_argument("--competition", default=None, help="key in config/competitions.json (default: the active one)")
+    ap.add_argument("--snapshots", default=str(ROOT / "data" / "snapshots"))
     ap.add_argument("--prices", default=str(ROOT / "config" / "prices.csv"))
     ap.add_argument("--no-encrypt", action="store_true")
     a = ap.parse_args()
-    R = rules()
+    cfg = load_json(ROOT / "config" / "competitions.json")
+    key = a.competition or cfg["active"]
+    comp = cfg["competitions"][key]
+    R = load_json(ROOT / comp["rules"])
     notes: list[str] = []
     dirs = [d for d in (a.rfu, a.espn) if Path(d).exists()]
     hist = load_matches(*dirs, tackles_include_missed=R["assumptions"]["tackles_include_missed"])
@@ -56,12 +61,14 @@ def main() -> None:
     hist = assign_rounds(hist)
     ov = load_json(ROOT / "config" / "overrides.json", {})
     pos = assign_positions(hist, ov)
-    fx = load_json(a.fixtures)
+    fx = load_json(ROOT / comp["fixtures"])
     asof = pd.Timestamp(datetime.now(timezone.utc).date())
     if (hist["source"] == "espn").any():
         n = hist[hist["source"] == "espn"]["match_key"].nunique()
         notes.append(f"{n} historical match(es) came from the ESPN fallback: sub minutes estimated, no turnovers-won data.")
-    res = project(hist, pos, fx["fixtures"], R, asof, ov)
+    res = project(hist, pos, fx["fixtures"], R, asof, ov, scope_teams=set(comp["teams"]))
+    for w in save_snapshots(res, fx["fixtures"], key, asof, a.snapshots):
+        notes.append(f"Snapshot taken: {w}")
     # official prices, once published: config/prices.csv with columns id,price (Opta player id)
     pcsv = Path(a.prices)
     if pcsv.exists():
@@ -77,7 +84,7 @@ def main() -> None:
     summarise(hist, res)
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
-        "season": fx["season"], "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
+        "season": fx["season"], "competition": comp["label"], "competitionKey": key, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
         "rules": R, "notes": notes, **res,
     }
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)

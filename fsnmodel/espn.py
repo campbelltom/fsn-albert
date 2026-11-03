@@ -8,7 +8,6 @@ import json
 import urllib.request
 from datetime import datetime, timedelta
 
-LEAGUE = 180659
 BASE = "https://site.api.espn.com/apis/site/v2/sports/rugby/{lg}"
 MAP = {  # espn stat name -> RFU-style key
     "tries": "attack:T", "metres": "attack:M", "runs": "attack:C", "defendersBeaten": "attack:DB", "cleanBreaks": "attack:CB",
@@ -26,12 +25,12 @@ def _get(url: str) -> dict:
         return json.load(r)
 
 
-def events(year: int) -> list[dict]:
+def events(year: int, league: int) -> list[dict]:
     """Six Nations events for a year. Tries a few date-window formats; prints the exact response on errors."""
     import urllib.error
     last = None
-    for q in (f"dates={year}0201-{year}0320", f"dates={year}0125-{year}0331", f"dates={year}"):
-        url = f"{BASE.format(lg=LEAGUE)}/scoreboard?{q}"
+    for q in (f"dates={year}",):
+        url = f"{BASE.format(lg=league)}/scoreboard?{q}"
         try:
             ev = _get(url).get("events", [])
         except urllib.error.HTTPError as e:      # noqa: PERF203
@@ -39,7 +38,7 @@ def events(year: int) -> list[dict]:
             print(f"ESPN {e.code} for {url}: {body}")
             last = e
             continue
-        print(f"ESPN {q}: {len(ev)} events")
+        print(f"ESPN league {league} {q}: {len(ev)} events")
         if ev:
             return ev
     if last:
@@ -47,12 +46,12 @@ def events(year: int) -> list[dict]:
     return []
 
 
-def parse_summary(summ: dict, ev: dict) -> dict | None:
+def parse_summary(summ: dict, ev: dict, competition: str = "Six Nations") -> dict | None:
     comp = ev["competitions"][0]
     sides = {c["homeAway"]: c for c in comp["competitors"]}
     home, away = sides["home"]["team"]["displayName"], sides["away"]["team"]["displayName"]
     played = ev.get("status", {}).get("type", {}).get("completed", False)
-    out = {"source": "espn", "season": int(ev["date"][:4]), "home": home, "away": away,
+    out = {"source": "espn", "competition": competition, "season": int(ev["date"][:4]), "home": home, "away": away,
            "date": ev["date"][:10], "venue": (comp.get("venue") or {}).get("fullName"),
            "teams": [home, away], "players": [], "estimated_minutes": True, "tackles_made": True,
            "score": {"home": int(float(sides["home"]["score"])), "away": int(float(sides["away"]["score"])),
@@ -73,18 +72,18 @@ def parse_summary(summ: dict, ev: dict) -> dict | None:
     return out if out["players"] else None
 
 
-def fetch_season(year: int, out_dir) -> int:
+def fetch_season(year: int, out_dir, league: int, competition: str) -> int:
     from pathlib import Path
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     n = 0
-    for ev in events(year):
-        f = out_dir / f"{ev['id']}.json"
+    for ev in events(year, league):
+        f = out_dir / f"{league}_{ev['id']}.json"
         if f.exists() and json.loads(f.read_text()).get("score"):
             continue
         try:
-            summ = _get(f"{BASE.format(lg=LEAGUE)}/summary?event={ev['id']}")
-            m = parse_summary(summ, ev)
+            summ = _get(f"{BASE.format(lg=league)}/summary?event={ev['id']}")
+            m = parse_summary(summ, ev, competition)
         except Exception as e:  # noqa: BLE001
             print("espn fail", ev.get("id"), e)
             continue
@@ -92,3 +91,26 @@ def fetch_season(year: int, out_dir) -> int:
             f.write_text(json.dumps(m, separators=(",", ":")))
             n += 1
     return n
+
+
+def discover_leagues() -> list[tuple]:
+    """Every rugby league ESPN knows (id, name): printed in the Actions log so more competitions can be added to config/espn_leagues.json."""
+    for url in ("https://sports.core.api.espn.com/v2/sports/rugby/leagues?limit=300", "https://site.api.espn.com/apis/site/v2/sports/rugby"):
+        try:
+            d = _get(url)
+        except Exception as e:  # noqa: BLE001
+            print("league discovery failed:", url, e)
+            continue
+        if "items" in d:
+            out = []
+            for it in d["items"]:
+                ref = it.get("$ref", "")
+                try:
+                    out.append((ref.rstrip("/").split("/")[-1].split("?")[0], _get(ref).get("name")))
+                except Exception:  # noqa: BLE001
+                    out.append((ref.rstrip("/").split("/")[-1].split("?")[0], "?"))
+            return out
+        lg = [(l.get("id"), l.get("name")) for s in d.get("sports", []) for l in s.get("leagues", [])]
+        if lg:
+            return lg
+    return []

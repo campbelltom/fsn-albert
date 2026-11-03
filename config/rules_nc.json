@@ -1,0 +1,49 @@
+{
+  "version": "Assumed = 2025 Six Nations rules (Nations Championship fantasy rules not confirmed)",
+  "points": {
+    "try_forward": 15,
+    "try_back": 10,
+    "assist": 4,
+    "conversion": 2,
+    "penalty": 3,
+    "drop_goal": 5,
+    "defender_beaten": 2,
+    "metres_per_point": 10,
+    "fifty22": 7,
+    "tackle": 1,
+    "breakdown_steal": 5,
+    "lineout_steal": 7,
+    "penalty_conceded": -1,
+    "potm": 15,
+    "yellow": -3,
+    "red": -6,
+    "win": 0,
+    "draw": 0
+  },
+  "squad": {
+    "budget": 230,
+    "max_per_nation": 4,
+    "bench": 1,
+    "xv": {
+      "BACK3": 3,
+      "CEN": 2,
+      "FH": 1,
+      "SH": 1,
+      "BR": 3,
+      "LOCK": 2,
+      "PROP": 2,
+      "HOOK": 1
+    }
+  },
+  "captain_multiplier": 2,
+  "supersub": {
+    "on": 3.0,
+    "off": 0.5
+  },
+  "assumptions": {
+    "tackles_include_missed": true,
+    "fifty22_per_80": 0.0,
+    "potm_win_share": 0.85,
+    "match_minutes": 80
+  }
+}

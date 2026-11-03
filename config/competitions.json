@@ -1,0 +1,41 @@
+{
+ "active": "nations-championship",
+ "competitions": {
+  "nations-championship": {
+   "label": "Nations Championship 2026",
+   "short": "Nations Championship",
+   "teams": [
+    "England",
+    "France",
+    "Ireland",
+    "Italy",
+    "Scotland",
+    "Wales",
+    "Argentina",
+    "Australia",
+    "New Zealand",
+    "South Africa",
+    "Japan",
+    "Fiji"
+   ],
+   "fixtures": "config/fixtures_nc2026.json",
+   "rules": "config/rules_nc.json",
+   "season": 2026
+  },
+  "six-nations": {
+   "label": "Six Nations 2027",
+   "short": "Six Nations",
+   "teams": [
+    "England",
+    "France",
+    "Ireland",
+    "Italy",
+    "Scotland",
+    "Wales"
+   ],
+   "fixtures": "config/fixtures_2027.json",
+   "rules": "config/rules.json",
+   "season": 2027
+  }
+ }
+}

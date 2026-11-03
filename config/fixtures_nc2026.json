@@ -1,0 +1,114 @@
+{
+ "season": 2026,
+ "note": "Northern Hemisphere Series, rounds 4-6. Finals Weekend (27-29 Nov) pairings depend on the tables after round 6. Sources: ESPN, TechRadar, Wikipedia.",
+ "fixtures": [
+  {
+   "round": 4,
+   "date": "2026-11-06",
+   "home": "Ireland",
+   "away": "Argentina"
+  },
+  {
+   "round": 4,
+   "date": "2026-11-07",
+   "home": "Italy",
+   "away": "South Africa"
+  },
+  {
+   "round": 4,
+   "date": "2026-11-07",
+   "home": "Scotland",
+   "away": "New Zealand"
+  },
+  {
+   "round": 4,
+   "date": "2026-11-07",
+   "home": "Wales",
+   "away": "Japan"
+  },
+  {
+   "round": 4,
+   "date": "2026-11-07",
+   "home": "France",
+   "away": "Fiji"
+  },
+  {
+   "round": 4,
+   "date": "2026-11-08",
+   "home": "England",
+   "away": "Australia"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-13",
+   "home": "France",
+   "away": "South Africa"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-14",
+   "home": "Italy",
+   "away": "Argentina"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-14",
+   "home": "Wales",
+   "away": "New Zealand"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-14",
+   "home": "England",
+   "away": "Japan"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-14",
+   "home": "Ireland",
+   "away": "Fiji"
+  },
+  {
+   "round": 5,
+   "date": "2026-11-15",
+   "home": "Scotland",
+   "away": "Australia"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "England",
+   "away": "New Zealand"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "Scotland",
+   "away": "Japan"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "Ireland",
+   "away": "South Africa"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "Italy",
+   "away": "Fiji"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "France",
+   "away": "Argentina"
+  },
+  {
+   "round": 6,
+   "date": "2026-11-21",
+   "home": "Wales",
+   "away": "Australia"
+  }
+ ]
+}

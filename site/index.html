@@ -223,11 +223,12 @@ const total = (p, rs) => rs.reduce((a, r) => a + p.exp[r], 0);
 function start(data){
   D = data;
   $('#lock').hidden = true; $('#app').hidden = false;
-  $('#seasonTag').textContent = D.season;
+  $('#seasonTag').textContent = D.competition || D.season;
   const when = new Date(D.generated);
   $('#sub').textContent = `Updated ${when.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${D.history.matches} matches of history (${D.history.seasons[0]}–${D.history.seasons.slice(-1)[0]}) · scoring: ${D.rules.version}`;
   // scope controls
-  const sc = [['next','R1'],['first3','R1–3'],['all','All 5']];
+  const nR = D.rounds.length, r0 = D.rounds[0].round;
+  const sc = [['next','R'+r0]].concat(nR > 3 ? [['first3','R'+r0+'–'+D.rounds[2].round]] : []).concat(nR > 1 ? [['all','All '+nR]] : []);
   $('#scope').innerHTML = sc.map(([k,l]) => `<button data-s="${k}" aria-pressed="${k===state.scope}">${l}</button>`).join('');
   $('#scope').onclick = e => { const b = e.target.closest('button'); if(!b) return; state.scope = b.dataset.s; [...$('#scope').children].forEach(x => x.setAttribute('aria-pressed', x===b)); renderList(); };
   $('#pchips').innerHTML = ['ALL', ...Object.keys(POS_LABEL)].map(p => `<button data-p="${p}" class="p-${p}" aria-pressed="${p==='ALL'}">${p==='ALL'?'All':POS_LABEL[p]}</button>`).join('');
@@ -240,7 +241,7 @@ function start(data){
   $('#themeBtn').onclick = () => { const r = document.documentElement; const dark = r.getAttribute('data-theme') ? r.getAttribute('data-theme')==='dark' : matchMedia('(prefers-color-scheme:dark)').matches; r.setAttribute('data-theme', dark?'light':'dark'); };
   document.querySelector('.dock').onclick = e => { const b = e.target.closest('button'); if(!b) return; showTab(b.dataset.tab); };
   // squad controls
-  $('#sqScope').innerHTML = D.rounds.map((r,i) => `<option value="${i}">Round ${r.round}</option>`).join('') + '<option value="first3">Rounds 1–3</option><option value="all" selected>All rounds</option>';
+  $('#sqScope').innerHTML = D.rounds.map((r,i) => `<option value="${i}">Round ${r.round}</option>`).join('') + (nR > 3 ? '<option value="first3">Rounds '+r0+'–'+D.rounds[2].round+'</option>' : '') + '<option value="all" selected>All rounds</option>';
   $('#sqBudget').value = D.rules.squad.budget;
   $('#sqGo').onclick = runSquad;
   $('#sqClear').onclick = () => { keep.clear(); ban.clear(); saveLists(); renderList(); renderLists(); };
@@ -338,7 +339,7 @@ function renderFixtures(){
 function renderFoot(){
   const P = D.rules.points;
   $('#foot').innerHTML = `<p>Scoring used: try ${P.try_forward} (forward) / ${P.try_back} (back), assist ${P.assist}, conversion ${P.conversion}, penalty ${P.penalty}, drop goal ${P.drop_goal}, defender beaten ${P.defender_beaten}, ${P.metres_per_point} m carried = 1, tackle ${P.tackle}, turnover won ${P.breakdown_steal}, lineout steal ${P.lineout_steal}, penalty conceded ${P.penalty_conceded}, yellow ${P.yellow}, red ${P.red}, player of the match ${P.potm}. Captain ×${D.rules.captain_multiplier}; supersub ×${D.rules.supersub.on} if he comes on, ×${D.rules.supersub.off} if not.</p>
-  <p>Squad: ${D.rules.squad.budget}★, ${Object.values(D.rules.squad.xv).reduce((a,b)=>a+b,0)} starters + ${D.rules.squad.bench} bench, max ${D.rules.squad.max_per_nation} per nation. Player of the match is a heuristic; 50:22 kicks are not in the source data. Squads are not named until January, so every player capped in the last year is shown.</p>
+  <p>Squad: ${D.rules.squad.budget}★, ${Object.values(D.rules.squad.xv).reduce((a,b)=>a+b,0)} starters + ${D.rules.squad.bench} bench, max ${D.rules.squad.max_per_nation} per nation. Player of the match is a heuristic; 50:22 kicks are not in the source data. Squads are not always named in advance, so every player capped in the last year is shown.</p>
   ${(D.notes||[]).map(n => `<p>${n}</p>`).join('')}`;
 }
 boot();
