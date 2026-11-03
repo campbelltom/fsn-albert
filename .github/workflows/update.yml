@@ -58,7 +58,7 @@ jobs:
             exit 1
           }
       - name: Backtest and snapshot evaluation (public stats only)
-        run: python scripts/backtest.py --competition "Nations Championship" --rules config/rules_nc.json
+        run: python scripts/backtest.py --competition all --rules config/rules_nc.json
         continue-on-error: true
       - name: Assemble site
         run: cp site/index.html site/squad.js _site/

@@ -32,10 +32,14 @@ def main() -> None:
     if hist.empty:
         out.append("No match data.")
     else:
-        n_comp = hist[hist["competition"] == a.competition]["match_key"].nunique()
-        out.append(f"# Backtest\n\nHistory: {hist['match_key'].nunique()} matches ({hist['competition'].value_counts().to_dict()} rows by competition); {n_comp} {a.competition} matches evaluated round by round.\n")
-        df, info = walk_forward(hist, R, a.competition, ov)
-        out.append(report(df, info, f"Walk-forward: {a.competition}"))
+        per = hist.drop_duplicates("match_key")["competition"].value_counts().to_dict()
+        out.append(f"# Backtest\n\nHistory: {hist['match_key'].nunique()} matches with player stats, by competition: {per}.\n")
+        comps = [c for c, n in per.items() if n >= 6] if a.competition == "all" else [a.competition]
+        if not comps:
+            out.append("No competition has enough matches with player stats to backtest yet.\n")
+        for c in comps:
+            df, info = walk_forward(hist, R, c, ov)
+            out.append(report(df, info, f"Walk-forward: {c}"))
         if Path(a.snapshots).exists() and any(Path(a.snapshots).glob("*.json")):
             sd, si = evaluate_snapshots(a.snapshots, hist, R, ov)
             out.append(report(sd, si, "Frozen pre-round snapshots vs actual"))
