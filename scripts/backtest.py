@@ -5,6 +5,7 @@ Writes markdown to stdout and to $GITHUB_STEP_SUMMARY when set."""
 from __future__ import annotations
 
 import argparse
+import warnings
 import os
 import sys
 from pathlib import Path
@@ -14,6 +15,9 @@ sys.path.insert(0, str(ROOT))
 from fsnmodel.common import load_json  # noqa: E402
 from fsnmodel.data import load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.evaluate import evaluate_snapshots, report, walk_forward  # noqa: E402
+
+
+warnings.filterwarnings("ignore")
 
 
 def main() -> None:

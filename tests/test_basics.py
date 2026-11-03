@@ -66,6 +66,11 @@ def test_lineups_and_nc_scoring():
     by = {p["id"]: p for p in res["players"]}
     assert by["2020"]["fx"][0]["ln"] == "S" and by["2008"]["fx"][0]["ln"] == "B"
     assert by["2020"]["exp"][0] > by["2008"]["exp"][0]
+    # a team with no history at all (e.g. a new nation in the competition) must not break the projection
+    fx2 = [{"round": 1, "date": "2027-02-05", "home": "Argentina", "away": "England"}]
+    lm2 = {(1, "Argentina"): {f"n:Arg:{i}": (i, f"Arg{i}") for i in range(1, 24)}}
+    res2 = project(hist, assign_positions(hist), fx2, rules(), pd.Timestamp("2026-06-01"), lineup_map=lm2)
+    assert any(p["team"] == "Argentina" and p["exp"][0] > 0 for p in res2["players"])
 
 
 def test_backtest_runs():

@@ -243,8 +243,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             opp, is_home, f = fx
             exp_for = tm.expected_points(team, opp, is_home)
             exp_against = tm.expected_points(opp, team, not is_home)
-            atk = float(np.clip(exp_for / tm.base_pf[team], 0.6, 1.6))
-            dfm = float(np.clip(exp_against / tm.base_pa[team], 0.6, 1.6))
+            atk = float(np.clip(exp_for / tm.base_pf.get(team, tm.avg), 0.6, 1.6))
+            dfm = float(np.clip(exp_against / tm.base_pa.get(team, tm.avg), 0.6, 1.6))
             ctx = PARAMS["ctx"]
             atk, dfm = atk ** ctx, dfm ** ctx
             mult = {"tries": atk, "assists": atk, "conv": atk, "pen": 1.0, "dg": 1.0, "metres": atk ** 0.5, "db": atk ** 0.5,
