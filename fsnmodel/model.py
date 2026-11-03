@@ -333,10 +333,10 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             def pts_for(mins: float) -> dict:
                 acc = {c: 0.0 for c in COMPONENTS if c not in ("potm", "team")}
                 for r_, q_ in roles.items():
-                    rt = rates_for(r_)
-                    g_ = group_of_role(r_)
-                    sl = {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN, "scrums": scrums_for(g_, mins, R)}
-                    c_ = points_from_stats(sl, g_, R, floor_metres=False)
+                    rt = rates_for(r_)          # what he does on the pitch comes from the role (shirt) ...
+                    # ... but the game scores him by his listed fantasy position (scrum points only for listed props/hookers, try value by position)
+                    sl = {s: rt[s] * mult[s] * mins / MATCH_MIN for s in STATS} | {"f2250": a.get("fifty22_per_80", 0.0) * mins / MATCH_MIN, "scrums": scrums_for(p, mins, R)}
+                    c_ = points_from_stats(sl, p, R, floor_metres=False)
                     if sl["metres"] > 0:
                         c_["carrying"] -= 0.45                         # floor-to-10m continuity correction
                     for k_, v_ in c_.items():
