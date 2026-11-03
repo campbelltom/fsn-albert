@@ -58,7 +58,9 @@ def parse_summary(summ: dict, ev: dict, competition: str = "Six Nations") -> dic
                      "homeName": home, "awayName": away} if played else None}
     for blk in summ.get("boxscore", {}).get("players", []):
         team = blk["team"]["displayName"]
-        for ath in blk["statistics"][0]["athletes"]:
+        if not blk.get("statistics"):
+            continue
+        for ath in blk["statistics"][0].get("athletes", []):
             a = ath["athlete"]
             stats = {}
             for s in ath["statistics"][0]["stats"]:
@@ -77,6 +79,7 @@ def fetch_season(year: int, out_dir, league: int, competition: str) -> int:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     n = 0
+    n_diag = [0]
     for ev in events(year, league):
         f = out_dir / f"{league}_{ev['id']}.json"
         if f.exists() and json.loads(f.read_text()).get("score"):
@@ -85,11 +88,18 @@ def fetch_season(year: int, out_dir, league: int, competition: str) -> int:
             summ = _get(f"{BASE.format(lg=league)}/summary?event={ev['id']}")
             m = parse_summary(summ, ev, competition)
         except Exception as e:  # noqa: BLE001
-            print("espn fail", ev.get("id"), e)
+            import traceback
+            print("espn fail", ev.get("id"), repr(e), traceback.format_exc().strip().splitlines()[-3:])
             continue
         if m:
             f.write_text(json.dumps(m, separators=(",", ":")))
             n += 1
+        elif ev.get("status", {}).get("type", {}).get("completed") and n_diag[0] < 3:
+            n_diag[0] += 1
+            bx = summ.get("boxscore", {})
+            print("no player stats for completed event", ev.get("id"), ev.get("name"), "| summary keys:", sorted(summ.keys())[:14],
+                  "| boxscore keys:", sorted(bx.keys()), "| players blocks:", [(b.get("team", {}).get("displayName"), len(b.get("statistics", []))) for b in bx.get("players", [])],
+                  "| rosters:", len(summ.get("rosters", [])), "| team stat count:", [len(t.get("statistics", [])) for t in bx.get("teams", [])])
     return n
 
 
