@@ -3,5 +3,470 @@
     "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&team=8&matchId=949462&competitionId=3&seasonId=2026",
     "competition": "International",
     "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931182&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/18032023-ireland-vs-england",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931181&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931180&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/11032023-england-vs-france",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931178&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931177&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931175&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/25022023-wales-vs-england",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/12022023-england-vs-italy",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931172&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931173&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931171&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/04022023-england-vs-scotland",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2022-2023&matchId=931169&competitionId=209&seasonId=2023",
+    "competition": "Six Nations",
+    "season": 2023
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-24-france-england",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936544&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936543&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936542&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-24-england-ireland",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936540&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936539&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936537&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-24-scotland-england",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936536&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-24-england-wales",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936534&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-24-italy-england",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936533&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2023-2024&matchId=936531&competitionId=209&seasonId=2024",
+    "competition": "Six Nations",
+    "season": 2024
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941803&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941801&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2025-wales-v-england-match-centre",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2025-england-v-italy-match-centre",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941798&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941799&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941797&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2025-england-v-scotland-match-centre",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941795&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941794&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2025-england-v-france-match-centre",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941792&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2025-ireland-v-england-match-centre",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941790&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2024-2025&matchId=941789&competitionId=209&seasonId=2025",
+    "competition": "Six Nations",
+    "season": 2025
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2026-france-v-england-match-centre",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947116&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947117&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2026-italy-v-england-match-centre",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947114&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947113&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947112&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2026-england-v-ireland-match-centre",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947111&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947109&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947107&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2026-scotland-v-england-match-centre",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/six-nations-2026-england-v-wales-match-centre",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947105&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2&season=2025-2026&matchId=947104&competitionId=209&seasonId=2026",
+    "competition": "Six Nations",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/nations-championship-2026-argentina-vs-england",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949577&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949580&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949576&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949579&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949578&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949575&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949573&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre/nations-championship-2026-fiji-vs-england",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949571&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949570&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949572&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949569&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949567&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949568&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949565&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949564&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=2311&season=2026-2027&matchId=949566&competitionId=114&seasonId=2026",
+    "competition": "Nations Championship",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949625&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949626&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949627&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=952923&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=953454&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949624&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=953043&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=950766&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949461&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949623&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949460&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949459&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949622&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=950383&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
+  },
+  {
+    "url": "https://www.englandrugby.com/fixtures-and-results/match-centre-elite?competition=0&division=79054&season=2026-2027&matchId=949621&competitionId=3&seasonId=2026",
+    "competition": "International",
+    "season": 2026
   }
 ]
