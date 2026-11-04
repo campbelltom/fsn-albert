@@ -9,7 +9,7 @@ site's own competition and season filters:
 --generated also guesses URLs instead (six-nations-<year>-<home>-v-<away>-match-centre; with --england-tests, England's autumn
 series). Most of those pages do not exist, so this is only for matches the filters do not list.
 
-One JSON per match in data/rfu/. Finished matches are cached and never fetched again. Pages that do not exist are remembered
+One JSON per match in data/rfu/. Matches with a score and player data are cached and never fetched again. Pages that do not exist are remembered
 for past seasons only. Run this from a normal machine: the RFU site refuses GitHub's runners (HTTP 405)."""
 from __future__ import annotations
 
@@ -81,7 +81,8 @@ def main() -> None:
         page = ctx.new_page()
         for key, url, meta, y in todo:
             f = out / f"{key}.json"
-            if f.exists() and json.loads(f.read_text()).get("score"):
+            cached = json.loads(f.read_text()) if f.exists() else {}
+            if cached.get("score") and cached.get("players"):
                 continue                                   # finished: cached for good
             if key in missing and y < this_year:
                 continue

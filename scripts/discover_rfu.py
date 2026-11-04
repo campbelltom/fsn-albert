@@ -4,7 +4,7 @@
     python scripts/scrape_rfu.py
 
 The listings (fixtures-and-results/search-results) link every match, including England's pages, whose hand-written slugs cannot
-be generated. Only matches dated today or earlier are added, so re-run this after each round. Existing manifest entries are kept
+be generated. Only matches dated before today are added, so re-run this the day after each round. Existing manifest entries are kept
 unchanged. Listings that show a "Load more" button may be cut short: the per-season counts printed here are the check on that."""
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def parse_listing(page_html: str, today: date, season_label: str) -> tuple[dict[
     fallback = int(ids.most_common(1)[0][0]) if ids else int(season_label[-4:])
     found, unplayed = {}, 0
     for url, when in dated.items():
-        if when and when > today:
+        if when and when >= today:                # today's matches may be unfinished, and a saved score is cached for good
             unplayed += 1
             continue
         sid = re.search(r"seasonId=(\d{4})", url)
