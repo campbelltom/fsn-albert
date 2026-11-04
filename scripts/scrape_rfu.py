@@ -1,11 +1,13 @@
 """Scrape RFU (englandrugby.com) match centres: Opta widgets rendered client-side.
 
-Three sources of URLs:
-  * Six Nations pages, generated:      six-nations-<year>-<home>-v-<away>-match-centre
-  * England's autumn tests, generated: --england-tests (quilter-nations-series-<year>-england-v-<opp>-match-centre ...)
-  * Anything else, listed by hand:      config/rfu_matches.json  (any match-centre / match-centre-elite URL, e.g. South Africa v New Zealand)
+URLs come from config/rfu_matches.json (any match-centre / match-centre-elite URL), which scripts/discover_rfu.py fills from the
+site's own competition and season filters:
 
-    python scripts/scrape_rfu.py --from 2023 --to 2027 --england-tests --manifest config/rfu_matches.json
+    python scripts/discover_rfu.py
+    python scripts/scrape_rfu.py
+
+--generated also guesses URLs instead (six-nations-<year>-<home>-v-<away>-match-centre; with --england-tests, England's autumn
+series). Most of those pages do not exist, so this is only for matches the filters do not list.
 
 One JSON per match in data/rfu/. Finished matches are cached and never fetched again. Pages that do not exist are remembered
 for past seasons only. Run this from a normal machine: the RFU site refuses GitHub's runners (HTTP 405)."""
@@ -58,7 +60,8 @@ def main() -> None:
     ap.add_argument("--from", dest="y0", type=int, default=2023)
     ap.add_argument("--to", dest="y1", type=int, default=date.today().year + 1)
     ap.add_argument("--out", default=str(ROOT / "data" / "rfu"))
-    ap.add_argument("--england-tests", action="store_true", help="also try England's autumn-series pages")
+    ap.add_argument("--generated", action="store_true", help="also guess URLs from fixture patterns (saves a match under a second name if it is also in the manifest)")
+    ap.add_argument("--england-tests", action="store_true", help="with --generated, also try England's autumn-series pages")
     ap.add_argument("--manifest", default=str(ROOT / "config" / "rfu_matches.json"))
     a = ap.parse_args()
     out = Path(a.out)
@@ -70,7 +73,8 @@ def main() -> None:
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
     n_new = n_fail = 0
     reasons: dict[str, int] = {}
-    todo = list(candidates(a.y0, a.y1, a.england_tests)) + list(manifest_entries(Path(a.manifest)))
+    generated = candidates(a.y0, a.y1, a.england_tests) if a.generated else []
+    todo = list(generated) + list(manifest_entries(Path(a.manifest)))
     with sync_playwright() as pw:
         br = pw.chromium.launch()
         ctx = br.new_context(user_agent="Mozilla/5.0 (fsn-albert personal fantasy model)")
@@ -85,7 +89,9 @@ def main() -> None:
                 resp = page.goto(url, wait_until="domcontentloaded", timeout=45000)
                 if resp is None or resp.status >= 400:
                     raise PWTimeout("http " + str(getattr(resp, "status", "?")))
-                page.wait_for_selector("table.Opta-Squad", timeout=25000)
+                if page.url.split("?")[0] != url.split("?")[0]:     # the site can redirect a guessed URL to another season's match
+                    raise PWTimeout("redirected to " + page.url)
+                page.wait_for_selector("table.Opta-Squad", state="attached", timeout=25000)  # may sit in a hidden tab
                 page.wait_for_selector("table.Opta-Striped", state="attached", timeout=25000)
                 time.sleep(0.8)
                 d = page.evaluate(JS)
