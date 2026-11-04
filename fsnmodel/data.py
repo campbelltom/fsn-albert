@@ -99,9 +99,10 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
             if f.name.startswith("_"):
                 continue
             m = json.loads(f.read_text())
-            if not m.get("score"):
+            if not m.get("score") or not m.get("players"):   # an empty page must not block another source's stats
                 continue
-            key = (m["season"], m.get("date"), frozenset((norm_team(m["home"]), norm_team(m["away"]))))
+            # parsed, because sources write dates differently (RFU "Saturday 4 February 2023", ESPN "2023-02-04")
+            key = (m["season"], parse_date(m.get("date")), frozenset((norm_team(m["home"]), norm_team(m["away"]))))
             raw.setdefault(key, m)
     rows = []
     for m in raw.values():
