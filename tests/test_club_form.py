@@ -68,7 +68,7 @@ def test_club_matches_cannot_change_team_or_position(hist):
     by, base = {p["id"]: p for p in res["players"]}, {p["id"]: p for p in plain["players"]}
     assert by[STAR]["team"] == "Ireland", "a club match must not change a player's team"
     assert pos[STAR] == pos_plain[STAR] == "FH", "the Test position decides, not the club shirt"
-    assert (by[STAR]["pStart"], by[STAR]["caps"]) == (base[STAR]["pStart"], base[STAR]["caps"]), "selection comes from Tests only"
+    assert by[STAR]["caps"] == base[STAR]["caps"], "caps come from Tests only"
     assert by[STAR]["roles"] == base[STAR]["roles"], "roles come from Tests only"
     assert "9001" not in by, "a player with no national-team match is not projected"
 

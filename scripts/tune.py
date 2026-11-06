@@ -56,7 +56,6 @@ def main() -> None:
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--skip", type=int, default=4, help="skip the first N rounds of each competition (little history)")
     ap.add_argument("--set", default="settings", choices=["settings", "roles", "club"], help="which family of variants to compare")
-    ap.add_argument("--no-lineups", action="store_true", help="predict starters instead of using the named 23")
     a = ap.parse_args()
     R = load_json(a.rules)
     ov = load_json(ROOT / "config" / "overrides.json", {})
@@ -70,19 +69,19 @@ def main() -> None:
         model.PARAMS.update(base); model.PARAMS.update(ch)
         parts = []
         for c in comps:
-            df, _ = walk_forward(hist, R, c, ov, min_rounds_before=a.skip, use_lineups=not a.no_lineups)
+            df, _ = walk_forward(hist, R, c, ov, min_rounds_before=a.skip)
             if not df.empty:
                 df["comp"] = c; df["round"] = df["comp"] + df["round"].astype(str)
                 parts.append(df)
         d = pd.concat(parts, ignore_index=True)
-        al, st = compare(d), compare(d[d["p_start"] >= 0.5])
+        al, st = compare(d), compare(d[d["ln"] == "S"])
         rows.append(dict(variant=name, n=al["n"], mae_all=al["mae"], mae_base=al.get("mae_baseline"), rho_all=al["spearman"], mae_start=st["mae"], mae_start_base=st.get("mae_baseline"),
                          rho_start=st["spearman"], bias=al["bias"], top15=al["top15_actual"], best15=al["top15_best_possible"]))
         print(name, {k: round(v, 3) for k, v in rows[-1].items() if isinstance(v, float)}, flush=True)
     model.PARAMS.update(base)
     t = pd.DataFrame(rows)
     lines = [f"# Tuning (walk-forward, competitions: {', '.join(comps)}; first {a.skip} rounds of each skipped)", "",
-             "| variant | n | MAE all | (naive) | rank corr all | MAE starters | (naive) | rank corr starters | bias | best-15 actual | (ideal) |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+             "| variant | n | MAE named 23 | (naive) | rank corr named 23 | MAE named starters | (naive) | rank corr named starters | bias | best-15 actual | (ideal) |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in t.itertuples():
         lines.append(f"| {r.variant} | {r.n} | {r.mae_all:.2f} | {r.mae_base:.2f} | {r.rho_all:.3f} | {r.mae_start:.2f} | {r.mae_start_base:.2f} | {r.rho_start:.3f} | {r.bias:+.2f} | {r.top15:.1f} | {r.best15:.1f} |")
     text = "\n".join(lines) + "\n"

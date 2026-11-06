@@ -37,7 +37,7 @@ def summarise(hist, res) -> None:
         by.setdefault(p["pos"], []).append(np.mean(p["exp"]))
     print("players", len(P), {k: (len(v), round(float(np.mean(v)), 1)) for k, v in sorted(by.items())})
     for p in P[:12]:
-        print("  %-22s %-9s %-5s %3d* start %.2f sub %.2f  exp/rd %.1f  %s" % (p["name"][:22], p["team"], p["pos"], p["price"], p["pStart"], p["pSub"], float(np.mean(p["exp"])), p["flags"]))
+        print("  %-22s %-9s %-5s %3d*  exp/rd %.1f  %s" % (p["name"][:22], p["team"], p["pos"], p["price"], float(np.mean(p["exp"])), p["flags"]))
     print("flagged few caps:", sum("few caps" in p["flags"] for p in P), "| nan:", sum(1 for p in P if any(x != x for x in p["exp"])))
 
 

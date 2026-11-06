@@ -44,9 +44,7 @@ def main() -> None:
             out.append("No competition has enough matches with player stats to backtest yet.\n")
         for c in comps:
             df, info = walk_forward(hist, R, c, ov)
-            out.append(report(df, info, f"Walk-forward: {c} (starters predicted)"))
-            dl, il = walk_forward(hist, R, c, ov, use_lineups=True)
-            out.append(report(dl, il, f"Walk-forward: {c} (with named lineups, as in real use)"))
+            out.append(report(df, info, f"Walk-forward: {c} (named lineups, as in real use)"))
         if Path(a.snapshots).exists() and any(Path(a.snapshots).glob("*.json")):
             sd, si = evaluate_snapshots(a.snapshots, hist, R, ov)
             out.append(report(sd, si, "Frozen pre-round snapshots vs actual"))

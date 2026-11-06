@@ -208,34 +208,14 @@ class PlayerModel:
         out = {s: (base[s] if base else self.g_rate(role, s)) * u.get(s, 1.0) for s in self._cols()}
         return out
 
-    # ---- availability
-    def appearance(self, pid: str, team: str, role: str, n_team_matches: int = 10) -> dict:
+    # ---- minutes (who plays is never predicted: it comes from the named 23)
+    def appearance(self, pid: str, team: str, role: str) -> dict:
         g = self.h[self.h["pid"] == pid]
-        t_hist = self.h[self.h["team"] == team].drop_duplicates(["match_key", "team"]).sort_values("date")
-        t_hist = t_hist.tail(n_team_matches)
-        first = g["date"].min() if len(g) else self.asof
-        window = t_hist[t_hist["date"] >= first - pd.Timedelta(days=1)] if len(g) else t_hist.iloc[0:0]
-        w_all = wt((self.asof - window["date"]).dt.days.clip(lower=0), 300.0) if len(window) else np.array([])
-        gm = g.set_index("match_key")
-        started = np.array([float(gm["started"].get(k, False)) if k in gm.index else 0.0 for k in window["match_key"]])
-        subon = np.array([float(gm["sub_on"].get(k, False)) if k in gm.index else 0.0 for k in window["match_key"]])
-        prior_s = 0.12 if group_of_role(role) != "BACK3" else 0.10
-        prior_b = 0.20
-        k = 0.75                             # pseudo-matches of prior: a run of 10 starts should read ~0.95, one start ~0.6
-        n = len(window)                      # shrink by match count, not by decayed weight
-        sw = w_all.sum()
-        avg_s = (started * w_all).sum() / sw if sw else 0.0
-        avg_b = (subon * w_all).sum() / sw if sw else 0.0
-        ps = (n * avg_s + prior_s * k) / (n + k)
-        pb = (n * avg_b + prior_b * k) / (n + k)
-        tot = ps + pb
-        if tot > 0.98:
-            ps, pb = ps / tot * 0.98, pb / tot * 0.98
         # minutes if starting / if on as a replacement: this player's own history, shrunk to the role
         gs, gb = g[g["started"] & g["played"]], g[g["sub_on"]]
         ms = self._shrunk_mean(gs["minutes"], gs["w"], self.start_min.get(role, self._start_all), 2.0)
         mb = self._shrunk_mean(gb["minutes"], gb["w"], self.sub_min.get(role, self._sub_all), 2.0)
-        return dict(p_start=ps, p_sub=pb, min_start=ms, min_sub=mb, caps=int(g["played"].sum()), last=g["date"].max() if len(g) else pd.NaT)
+        return dict(min_start=ms, min_sub=mb, caps=int(g["played"].sum()), last=g["date"].max() if len(g) else pd.NaT)
 
     @staticmethod
     def _shrunk_mean(x: pd.Series, w: pd.Series, prior: float, k: float) -> float:
@@ -327,11 +307,13 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                     "tackles": dfm ** 0.4, "missed": dfm ** 0.4, "tw": 1.0, "ls": 1.0, "pc": 1.0, "yc": 1.0, "rc": 1.0,
                     "offloads": atk ** 0.5, "cb": atk ** 0.5, "lw": 1.0, "err": 1.0}
             w_, d_, l_ = tm.p_win(team, opp) if is_home else tuple(reversed(tm.p_win(opp, team)))
-            ps, pb = ap["p_start"] * avail, ap["p_sub"] * avail
+            # Selection is never predicted. Until the team's 23 are named, every player is valued as a starter;
+            # once they are, starters start, replacements come on at their bench shirt's rate, and everyone else scores nothing.
+            ps, pb = 1.0 * avail, 0.0
             em_start, em_sub = ap["min_start"], ap["min_sub"]
             ln, roles, rl = None, roles_default, None
             lm = lineup_map.get((rd, team))
-            if lm is not None:                       # the team's 23 are named: no need to predict who starts
+            if lm is not None:
                 ent = lm.get(pid)
                 if ent is None:
                     ln, ps, pb = "X", 0.0, 0.0
@@ -373,7 +355,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         if len(top) > 1 and top[0][1] < 0.85:
             flags.append("plays " + "/".join(r_ for r_, _ in top[:2]))
         players.append(dict(pid=pid, name=r["name"], team=team, pos=p, caps=ap["caps"], e80=e80, flags=flags, roles=[[r_, round(q_, 2)] for r_, q_ in top[:3]],
-                            p_start=ap["p_start"] * avail, p_sub=ap["p_sub"] * avail, comp=comp_round, raw=es_r))
+                            comp=comp_round, raw=es_r))
 
     # POTM heuristic: P(team wins) share-weighted by the squad's attacking output
     potm_share = R["assumptions"].get("potm_win_share", 0.85)
@@ -412,7 +394,6 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             raw = pl["raw"][ri]
             fixtures_p.append(None if not isinstance(raw, tuple) else {"opp": raw[5], "home": raw[6], "ln": raw[9], "rl": raw[10]})
         out_players.append(dict(id=pl["pid"], name=pl["name"], team=pl["team"], pos=pl["pos"], caps=pl["caps"],
-                                pStart=round(pl["p_start"], 3), pSub=round(pl["p_sub"], 3),
                                 eMin=round(sum(r_[8] for r_ in pl["raw"] if isinstance(r_, tuple)) / max(1, sum(isinstance(r_, tuple) for r_ in pl["raw"])), 1),
                                 flags=pl["flags"], roles=pl["roles"], exp=exps, sup=sups, comp=comps, fx=fixtures_p))
     # estimated stars (official prices are not published until the game opens): rank-based, top = 20

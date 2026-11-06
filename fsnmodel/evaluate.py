@@ -48,7 +48,7 @@ def _proj_to_rows(res: dict, rd_idx: int = 0) -> pd.DataFrame:
     for p in res["players"]:
         c = p["comp"][rd_idx]
         rows.append(dict(pid=p["id"], name=p["name"], team=p["team"], pos=p["pos"], exp=sum(v for k, v in c.items() if k not in ("potm", "team")),
-                         p_start=p["pStart"], p_sub=p["pSub"], caps=p["caps"]))
+                         ln=(p["fx"][rd_idx] or {}).get("ln"), caps=p["caps"]))
     return pd.DataFrame(rows)
 
 
@@ -91,8 +91,9 @@ def compare(df: pd.DataFrame) -> dict:
     return out
 
 
-def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: dict | None = None, min_rounds_before: int = 0, use_lineups: bool = False) -> tuple[pd.DataFrame, dict]:
-    """Project each round of `competition` from earlier matches only. Returns (rows, coverage info)."""
+def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: dict | None = None, min_rounds_before: int = 0) -> tuple[pd.DataFrame, dict]:
+    """Project each round of `competition` from earlier matches only, with each team's real named 23 (as announced before the match).
+    Scored on the named 23: players left out are known before kick-off to score nothing. Returns (rows, coverage info)."""
     comp = hist[hist["competition"] == competition]
     rds = rounds_of(comp)
     pos_all = assign_positions(hist, overrides)
@@ -110,13 +111,11 @@ def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: d
         if not fixtures:
             continue
         pos_past = assign_positions(past, overrides)
-        lm = None
-        if use_lineups:                                   # the real named 23 of each team, as announced before the match
-            lm = {}
-            for t, g in cur.groupby("team"):
-                g = g[g["shirt"].notna()]
-                if len(g) >= 15:
-                    lm[(1, t)] = {r.pid: (int(r.shirt), r.name) for r in g.itertuples()}
+        lm = {}
+        for t, g in cur.groupby("team"):
+            g = g[g["shirt"].notna()]
+            if len(g) >= 15:
+                lm[(1, t)] = {r.pid: (int(r.shirt), r.name) for r in g.itertuples()}
         res = project(past, pos_past, fixtures, rules, start - pd.Timedelta(days=1), overrides, lineup_map=lm)
         pr = _proj_to_rows(res)
         pts_past = actual_points(past, pos_past, rules)
@@ -124,7 +123,7 @@ def walk_forward(hist: pd.DataFrame, rules: dict, competition: str, overrides: d
         pts_cur = actual_points(cur, pos_all, rules)
         ac = cur.assign(act=pts_cur.values)[["pid", "act", "started", "minutes", "team"]]
         teams_playing = set(cur["team"])
-        pr = pr[pr["team"].isin(teams_playing)]
+        pr = pr[pr["team"].isin(teams_playing) & (pr["ln"] != "X")]
         m = pr.merge(ac[["pid", "act", "started", "minutes"]], on="pid", how="left")
         m["played"] = m["minutes"].fillna(0) > 0
         m["act"] = m["act"].fillna(0.0)
@@ -143,11 +142,11 @@ def report(df: pd.DataFrame, info: dict, title: str) -> str:
         return f"## {title}\n\nNo rounds could be evaluated (not enough earlier matches).\n"
     lines = [f"## {title}", ""]
     allm = compare(df)
-    st = compare(df[df["p_start"] >= 0.5])
+    st = compare(df[df["ln"] == "S"])
     pl = compare(df[df["played"]])
     fmt = lambda d, k: f"{d[k]:.2f}" if k in d and d[k] == d[k] else "-"  # noqa: E731
     lines += ["| subset | n | MAE | MAE baseline | RMSE | bias (proj-actual) | rank corr | rank corr baseline | actual mean |", "|---|---|---|---|---|---|---|---|---|"]
-    for name, d in (("all projected players", allm), ("likely starters (p_start>=0.5)", st), ("players who played", pl)):
+    for name, d in (("named 23", allm), ("named starters", st), ("players who played", pl)):
         lines.append(f"| {name} | {d['n']} | {fmt(d,'mae')} | {fmt(d,'mae_baseline')} | {fmt(d,'rmse')} | {fmt(d,'bias')} | {fmt(d,'spearman')} | {fmt(d,'spearman_baseline')} | {fmt(d,'mean_act')} |")
     lines += ["", f"Best 15 by projection averaged **{allm['top15_actual']:.1f}** actual points per round against {allm['top15_best_possible']:.1f} for the best possible 15; "
               f"the top-projected player scored {allm['captain_actual']:.1f} on average against {allm['captain_best_possible']:.1f} for the round's best.", "",
