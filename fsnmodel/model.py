@@ -21,7 +21,7 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
 PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5,   # tuned on 2023-26 walk-forward backtests (scripts/tune.py)
-          "club_weight": 0.0,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches)
+          "club_weight": 0.1,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches); 0.1 chosen by scripts/tune.py --set club
           "role_detail": "shirt", "k_team": 8.0}     # role_detail: "shirt" = 11 roles by shirt number, "group" = the 8 fantasy positions; k_team: pseudo 80-min games pulling a team's role baseline to the global one
 
 
