@@ -423,7 +423,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         for f in fixtures:
             if f["round"] == rd:
                 w_, d_, l_ = tm.p_win(f["home"], f["away"])
-                ms.append({"home": f["home"], "away": f["away"], "date": f["date"],
+                ms.append({"home": f["home"], "away": f["away"], "date": f["date"], "ko": f.get("ko"),
                            "pHome": round(w_ + d_ / 2, 3), "xHome": round(tm.expected_points(f["home"], f["away"], True), 1),
                            "xAway": round(tm.expected_points(f["away"], f["home"], False), 1)})
         rd_info.append({"round": rd, "matches": ms})

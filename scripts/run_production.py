@@ -41,6 +41,48 @@ def summarise(hist, res) -> None:
     print("flagged few caps:", sum("few caps" in p["flags"] for p in P), "| nan:", sum(1 for p in P if any(x != x for x in p["exp"])))
 
 
+def ingest_summary(hist, rfu_dir, lm, fx, pool, used, players) -> dict:
+    """Plain-language picture of what went into the model, shown on the site's Data tab."""
+    m = hist.drop_duplicates("match_key")
+    rows = hist.drop_duplicates(["match_key", "pid"])
+    def cnt(df, col):
+        return {str(k): int(v) for k, v in df[col].value_counts().items()}
+    comp = []
+    for c, g in m.groupby("competition"):
+        comp.append({"name": str(c), "matches": int(len(g)), "rfu": int((g["source"] == "rfu").sum()), "espn": int((g["source"] == "espn").sum()),
+                     "from": str(g["date"].min().date()), "to": str(g["date"].max().date())})
+    comp.sort(key=lambda x: -x["matches"])
+    seasons = [{"season": str(k), "matches": int(v)} for k, v in sorted(m["season"].value_counts().items())]
+    rfu_rows = rows[rows["source"] == "rfu"]
+    n_rfu = max(len(rfu_rows), 1)
+    cov = {
+        "rows": int(len(rows)), "rfuRows": int(len(rfu_rows)),
+        "realMinutesPct": round(100 * float((~rows["est_minutes"]).mean()), 1),
+        "turnoversPct": round(100 * float(rows["tw"].notna().mean()), 1),
+        "lineoutsPct": round(100 * float((rfu_rows["lw"] > 0).mean()), 1) if len(rfu_rows) else 0.0,
+        "shirtPct": round(100 * float(rows["shirt"].notna().mean()), 1),
+    }
+    rd = {}
+    for f in fx["fixtures"]:
+        r = rd.setdefault(f["round"], {"round": f["round"], "teams": 0, "named": 0})
+        for t in (f["home"], f["away"]):
+            r["teams"] += 1
+            r["named"] += int((f["round"], t) in lm)
+    rfu_files = [f for f in Path(rfu_dir).glob("*.json") if not f.name.startswith("_")] if Path(rfu_dir).exists() else []
+    miss = load_json(Path(rfu_dir) / "_missing.json", []) if Path(rfu_dir).exists() else []
+    latest = m.sort_values("date").tail(5)
+    return {
+        "matches": int(len(m)), "firstMatch": str(m["date"].min().date()), "lastMatch": str(m["date"].max().date()),
+        "bySource": cnt(m, "source"), "competitions": comp[:12], "seasons": seasons, "coverage": cov,
+        "lineups": sorted(rd.values(), key=lambda x: x["round"]),
+        "rfuFiles": len(rfu_files), "rfuMissing": len(miss) if isinstance(miss, list) else 0,
+        "pool": None if pool is None else {"size": int(len(pool)), "matched": int(len(used)), "unmatched": int(len(pool) - len(used)),
+                                           "inSite": int(len(players))},
+        "latest": [{"date": str(r["date"].date()), "home": r["team"] if r["home"] else r["opp"], "away": r["opp"] if r["home"] else r["team"],
+                    "score": f'{int(r["pf"])}-{int(r["pa"])}' if r["home"] else f'{int(r["pa"])}-{int(r["pf"])}', "source": r["source"]} for _, r in latest.iterrows()],
+    }
+
+
 def pool_report(res, pool, used) -> None:
     """Log how well the pool matched, and how projections line up with the game's own points so far."""
     import numpy as np
@@ -133,7 +175,7 @@ def main() -> None:
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "season": fx["season"], "competition": comp["label"], "competitionKey": key, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
-        "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
+        "ingest": ingest_summary(hist, a.rfu, lm, fx, pool, used if pool is not None else set(), res["players"]), "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
     }
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     if a.no_encrypt:

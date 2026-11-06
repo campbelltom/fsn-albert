@@ -60,14 +60,44 @@ jobs:
             echo "::error title=Model failed::$(tail -n 25 model.log | tr '\n' '|' | cut -c1-3000)"
             exit 1
           }
+      - name: Assemble site
+        run: cp site/index.html site/squad.js _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  # Evaluation is slow (minutes) and only writes to the log, so it runs beside the deploy instead of holding it up.
+  evaluate:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Restore scraped data
+        uses: actions/cache/restore@v4
+        with:
+          path: data/espn
+          key: fsn-data-${{ github.run_id }}
+          restore-keys: fsn-data-
+      - name: Restore projection snapshots
+        uses: actions/cache/restore@v4
+        with:
+          path: data/snapshots
+          key: fsn-snap-${{ github.run_id }}
+          restore-keys: fsn-snap-
       - name: Backtest and snapshot evaluation (public stats only)
         run: python scripts/backtest.py --competition all --rules config/rules_nc.json
         continue-on-error: true
       - name: Starters by shirt (per-80 profile)
         run: python scripts/role_table.py --rules config/rules_nc.json
         continue-on-error: true
-      - name: Compare role models by backtest (not on the schedule)
-        if: github.event_name != 'schedule'
+      - name: Compare role models by backtest (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
         run: python scripts/tune.py --set roles --rules config/rules_nc.json
         continue-on-error: true
         timeout-minutes: 25
@@ -76,11 +106,6 @@ jobs:
         run: python scripts/tune.py --rules config/rules_nc.json
         continue-on-error: true
         timeout-minutes: 25
-      - name: Assemble site
-        run: cp site/index.html site/squad.js _site/
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
 
   deploy:
     needs: build
