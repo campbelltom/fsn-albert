@@ -20,7 +20,28 @@
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
 
-  function evaluate(team, slots, rounds, rules, eps) {
+  /* Chips, each playable once, at most one per round:
+   *   triple captain: the captain scores xT instead of xC   -> worth (T - C) x the captain's points
+   *   co-captains:    a second captain is also doubled      -> worth (C - 1) x the second-best player's points
+   * gains[k] = {tc, cc} for the k-th round of the horizon; avail = {tc, cc} (false once used). */
+  function chipGains(c1, c2, rules) {
+    const C = rules.captain_multiplier, T = rules.triple_captain_multiplier || C;
+    return { tc: (T - C) * Math.max(0, c1), cc: (C - 1) * Math.max(0, c2) };
+  }
+
+  function bestChips(gains, avail) {
+    const R = gains.length, a = avail || {};
+    const tcs = a.tc ? [-1, ...Array(R).keys()] : [-1], ccs = a.cc ? [-1, ...Array(R).keys()] : [-1];   // -1 = keep the chip for later
+    let best = { value: 0, tc: -1, cc: -1 };
+    for (const i of tcs) for (const j of ccs) {
+      if (i >= 0 && i === j) continue;
+      const v = (i >= 0 ? gains[i].tc : 0) + (j >= 0 ? gains[j].cc : 0);
+      if (v > best.value) best = { value: v, tc: i, cc: j };
+    }
+    return best;
+  }
+
+  function evaluate(team, slots, rounds, rules, eps, chips) {
     // team: array of player objects aligned with slots
     const capX = rules.captain_multiplier - 1;
     let v = 0;
@@ -29,15 +50,17 @@
       if (slots[i] === 'BENCH') { for (const r of rounds) v += eps * p.exp[r]; }
       else for (const r of rounds) v += p.exp[r];
     }
+    const gains = [];
     for (const r of rounds) {
-      let c = -1e9, s = 0;
+      let c = -1e9, c2 = -1e9, s = 0;
       for (let i = 0; i < slots.length; i++) {
         if (slots[i] === 'BENCH') { if (team[i].sup[r] > s) s = team[i].sup[r]; }
-        else if (team[i].exp[r] > c) c = team[i].exp[r];
+        else { const e = team[i].exp[r]; if (e > c) { c2 = c; c = e; } else if (e > c2) c2 = e; }
       }
       v += capX * Math.max(0, c) + s;
+      if (chips) gains.push(chipGains(c, c2, rules));
     }
-    return v;
+    return chips ? v + bestChips(gains, chips).value : v;
   }
 
   function penalty(team, rules, budget, hemi, K) {
@@ -55,6 +78,7 @@
     const rounds = opts.rounds, budget = opts.budget ?? rules.squad.budget, hemi = opts.hemisphere || null;
     const keep = new Set(opts.keep || []), ban = new Set(opts.ban || []);
     const eps = opts.eps ?? 0.02;
+    const chips = opts.chips || null;               // {tc, cc}: chips still available to plan
     const slots = slotList(rules);
     const pool = players.filter(p => !ban.has(p.id));
     const byPos = {};
@@ -85,7 +109,7 @@
         team[i] = c[Math.min(c.length - 1, Math.floor(rng() * Math.min(6, c.length)))];
         used.add(team[i].id);
       }
-      const score = t => { const e = penalty(t, rules, budget, hemi, K); return evaluate(t, slots, rounds, rules, eps) - e.pen; };
+      const score = t => { const e = penalty(t, rules, budget, hemi, K); return evaluate(t, slots, rounds, rules, eps, chips) - e.pen; };
       let cur = score(team);
       let T0 = 0.15 * (Math.max(1, ...pool.map(total)) / Math.max(1, rounds.length)) , T1 = 0.02 * rounds.length;
       const free = slots.map((_, i) => i).filter(i => !frozen[i]);
@@ -117,23 +141,40 @@
       if (bestLocal && (!best || bestLocalScore > best.score)) best = { team: bestLocal, score: bestLocalScore };
     }
     if (!best) return null;
-    return describe(best.team, slots, rounds, rules, budget, eps);
+    return describe(best.team, slots, rounds, rules, budget, eps, chips);
   }
 
-  function describe(team, slots, rounds, rules, budget, eps) {
+  // Where to play each available chip for a squad over the horizon; a round is provisional while any of its XV is not yet named.
+  function planChips(xv, rounds, rules, chips) {
+    const ranked = rounds.map(r => xv.slice().sort((a, b) => b.exp[r] - a.exp[r]));
+    const gains = ranked.map((s, k) => chipGains(s[0].exp[rounds[k]], s[1] ? s[1].exp[rounds[k]] : 0, rules));
+    const best = bestChips(gains, chips);
+    return {
+      best,
+      rounds: rounds.map((r, k) => ({
+        round: r, tc: gains[k].tc, cc: gains[k].cc, captain: ranked[k][0].id, second: ranked[k][1] ? ranked[k][1].id : null,
+        provisional: xv.some(p => !(p.fx && p.fx[r] && p.fx[r].ln)),
+      })),
+    };
+  }
+
+  function describe(team, slots, rounds, rules, budget, eps, chips) {
     const xv = [], bench = [];
     team.forEach((p, i) => (slots[i] === 'BENCH' ? bench : xv).push(p));
-    const perRound = rounds.map(r => {
+    const plan = chips ? planChips(xv, rounds, rules, chips) : null;
+    const perRound = rounds.map((r, k) => {
       const cap = xv.reduce((a, p) => (p.exp[r] > a.exp[r] ? p : a), xv[0]);
       const sub = bench.reduce((a, p) => (p.sup[r] > a.sup[r] ? p : a), bench[0]);
-      const pts = xv.reduce((a, p) => a + p.exp[r], 0) + (rules.captain_multiplier - 1) * cap.exp[r] + (sub ? sub.sup[r] : 0);
-      return { round: r, captain: cap.id, supersub: sub ? sub.id : null, points: pts };
+      const chip = plan && plan.best.tc === k ? 'TC' : plan && plan.best.cc === k ? 'CC' : null;
+      const bonus = chip === 'TC' ? plan.rounds[k].tc : chip === 'CC' ? plan.rounds[k].cc : 0;
+      const pts = xv.reduce((a, p) => a + p.exp[r], 0) + (rules.captain_multiplier - 1) * cap.exp[r] + (sub ? sub.sup[r] : 0) + bonus;
+      return { round: r, captain: cap.id, coCaptain: chip === 'CC' ? plan.rounds[k].second : null, chip, supersub: sub ? sub.id : null, points: pts };
     });
-    const objective = evaluate(team, slots, rounds, rules, eps);
+    const objective = evaluate(team, slots, rounds, rules, eps, chips);
     const cost = team.reduce((a, p) => a + p.price, 0);
-    return { xv, bench, perRound, points: perRound.reduce((a, x) => a + x.points, 0), objective, cost, budget };
+    return { xv, bench, perRound, chips: plan, points: perRound.reduce((a, x) => a + x.points, 0), objective, cost, budget };
   }
 
-  const api = { optimise, evaluate, slotList };
+  const api = { optimise, evaluate, slotList, planChips, bestChips, chipGains };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SQUAD = api;
 })(typeof window !== 'undefined' ? window : globalThis);

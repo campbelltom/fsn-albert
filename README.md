@@ -18,10 +18,13 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
 
 ## Model (`fsnmodel/model.py`)
 1. Team strength: recency-weighted points for/against, shrunk to the league mean; home advantage; normal margin model -> win probability.
-2. Appearance: P(start) and P(off the bench) from the player's last team matches (recency weighted, shrunk to position priors), minutes if starting / replacing.
+2. Appearance: selection is never predicted; it comes from the named 23 (see below). Minutes if starting / replacing come from the player's own history.
+   Club matches (Gallagher Prem, Champions Cup, Challenge Cup) count towards a player's form at `club_weight` (0.1) of a Test; team strength, a player's team,
+   position and roles come from Tests only. `scripts/tune.py --set club` compares weights.
 3. Rates per 80 minutes for each scored action, empirical-Bayes shrunk to the position average.
 4. Context: attacking actions scale with the team's expected score in that fixture relative to its norm; tackles with the opposition's.
-5. Points under `config/rules.json`; captain x2 and supersub x3 / x0.5 handled in the squad builder.
+5. Points under `config/rules.json`; captain x2 and supersub x3 / x0.5 handled in the squad builder, which also plans the chips in `rules.chips`
+   (triple captain, co-captains; each once, one per round): each chip's extra points per round for the squad, the best round for each, and play now / save.
 
 ## Competitions, snapshots and evaluation
 - `config/competitions.json` picks the active competition (teams in scope, fixtures, rules). Now: **Nations Championship 2026** (rounds 4-6 projected; the three July
@@ -39,8 +42,8 @@ His listed fantasy position (for squad slots) does not change, and it is what th
 ## Named lineups
 Rugby teams are named ~48h before kick-off, so starters are not predicted once a team is named: `scripts/fetch_lineups.py` reads ESPN rosters (and `config/lineups.json`
 can name a team by hand, surnames are enough). Starters (1-15) get full minutes from their own history, bench players get a probability of coming on and minutes by shirt
-number (measured from history), players left out of the 23 score 0, and debutants with no history use position averages. Before a team is named the model falls back to
-predicting selection from recent matches. The backtest reports both ways.
+number (measured from history), players left out of the 23 score 0, and debutants with no history use position averages. Before a team is named every player is valued
+as a starter (no selection guess), so those rounds are provisional. The backtest uses the real named 23 and is scored on them.
 
 ## Rules / config
 - `config/rules.json`: scoring (2025 official), squad shape, budget (245), max 4 per nation, captain and supersub multipliers. Edit and push; the site footer shows what is in force.

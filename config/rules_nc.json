@@ -51,6 +51,11 @@
   },
   "captain_multiplier": 2,
   "triple_captain_multiplier": 3,
+  "chips": {
+    "triple_captain": {"uses": 1, "note": "Captain scores x3 instead of x2 for one round"},
+    "co_captains": {"uses": 1, "note": "A second captain is also doubled for one round"},
+    "one_per_round": true
+  },
   "supersub": {
     "on": 3.0,
     "off": 0.5
