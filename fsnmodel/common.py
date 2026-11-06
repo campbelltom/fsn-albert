@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parent.parent
 TEAMS = ["England", "France", "Ireland", "Italy", "Scotland", "Wales"]
 SLUG = {t: t.lower() for t in TEAMS}
 SIX_NATIONS = set(TEAMS)          # the site only shows players whose current team is in this set
+# Club matches feed player form only: never team strength, a player's current team, selection or position.
+CLUB_COMPETITIONS = {"Gallagher Prem", "Champions Cup", "Challenge Cup"}
 ALIASES = {"Springboks": "South Africa", "All Blacks": "New Zealand", "Pumas": "Argentina", "Los Pumas": "Argentina",
            "Wallabies": "Australia", "Flying Fijians": "Fiji", "Brave Blossoms": "Japan", "Eagles": "USA", "United States": "USA",
            "Georgia Lelos": "Georgia", "Azzurri": "Italy", "England Men": "England", "Wales Men": "Wales", "Scotland Men": "Scotland",

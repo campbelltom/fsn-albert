@@ -15,7 +15,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel.common import load_json  # noqa: E402
-from fsnmodel.data import assign_positions, assign_rounds, load_matches, with_measured_scrums  # noqa: E402
+from fsnmodel.data import assign_positions, assign_rounds, international, load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.export import encrypt_json  # noqa: E402
 from fsnmodel.lineups import build_lineup_map, load_all  # noqa: E402
 from fsnmodel.evaluate import save_snapshots  # noqa: E402
@@ -84,7 +84,7 @@ def main() -> None:
     if (hist["source"] == "espn").any():
         n = hist[hist["source"] == "espn"]["match_key"].nunique()
         notes.append(f"{n} historical match(es) came from the ESPN fallback: sub minutes estimated, no turnovers-won data.")
-    lm, ls = build_lineup_map(load_all([ROOT / "data" / "lineups"], ROOT / "config" / "lineups.json"), hist, fx["fixtures"])
+    lm, ls = build_lineup_map(load_all([ROOT / "data" / "lineups"], ROOT / "config" / "lineups.json"), international(hist), fx["fixtures"])
     if lm:
         notes.append("Named lineups used for: " + ", ".join(f"R{k[0]} {k[1]}" for k in sorted(lm)) + (f" ({ls['without_history']} players without history use position averages)" if ls["without_history"] else "") + ".")
     else:
@@ -92,7 +92,7 @@ def main() -> None:
     pool, mp, only = None, {}, None
     if comp.get("pool") and (ROOT / comp["pool"]).exists():
         pool = load_pool(ROOT / comp["pool"])
-        mp, pinfo = match_history(hist, pool, comp["hemisphere"], pos)
+        mp, pinfo = match_history(international(hist), pool, comp["hemisphere"], pos)
         for pid, ix in mp.items():
             pos[pid] = pool.loc[ix, "grp"]                 # the game's own position slot decides where a player can be picked
         only = set(mp)
@@ -128,7 +128,7 @@ def main() -> None:
         notes.append(f"{n} official prices loaded from config/prices.csv.")
     else:
         notes.append("Prices are estimates (official prices are published when the game opens): add config/prices.csv (id,price) to use them.")
-    seasons = sorted(hist["season"].unique().tolist())
+    seasons = sorted(international(hist)["season"].unique().tolist())
     summarise(hist, res)
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),

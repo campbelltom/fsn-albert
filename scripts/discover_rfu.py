@@ -19,11 +19,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SITE = "https://www.englandrugby.com"
 LISTING = SITE + "/fixtures-and-results/search-results?{query}&season={season}#results"
+CLUB_SEASONS = ["2022-2023", "2023-2024", "2024-2025", "2025-2026", "2026-2027"]
 # (name written to the manifest, filter query, seasons as the site's filter labels them)
 SOURCES = [
     ("Six Nations", "competition=2", ["2022-2023", "2023-2024", "2024-2025", "2025-2026", "2026-2027"]),
     ("Nations Championship", "competition=2311", ["2026-2027"]),
     ("International", "competition=0&division=79054", ["2026-2027"]),
+    # Club matches feed player form only: see CLUB_COMPETITIONS in fsnmodel/common.py
+    ("Gallagher Prem", "competition=5", CLUB_SEASONS),
+    ("Champions Cup", "competition=9", CLUB_SEASONS),
+    ("Challenge Cup", "competition=10", CLUB_SEASONS),
 ]
 LINK = re.compile(r'<a\b[^>]*href="([^"]*/match-centre[^"]*)"', re.I)
 CARD_DATE = re.compile(r"cardContainer_[A-Za-z]+,(\d{2}[A-Za-z]{3}\d{4})")

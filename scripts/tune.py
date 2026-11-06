@@ -13,7 +13,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel import model  # noqa: E402
-from fsnmodel.common import load_json  # noqa: E402
+from fsnmodel.common import CLUB_COMPETITIONS, load_json  # noqa: E402
 from fsnmodel.data import load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.evaluate import compare, walk_forward  # noqa: E402
 
@@ -25,6 +25,14 @@ ROLE_VARIANTS = [
     ("roles by shirt, no team baselines", {"k_team": 1e9}),
     ("roles by shirt, team baselines x2 weight (k_team 3)", {"k_team": 3.0}),
     ("roles by shirt, team baselines /2 weight (k_team 20)", {"k_team": 20.0}),
+]
+
+CLUB_VARIANTS = [         # club matches (Prem, Champions Cup, Challenge Cup) feed player form only, at this weight per match
+    ("Tests only (club_weight 0)", {"club_weight": 0.0}),
+    ("club_weight 0.1", {"club_weight": 0.1}),
+    ("club_weight 0.25", {"club_weight": 0.25}),
+    ("club_weight 0.5", {"club_weight": 0.5}),
+    ("club_weight 1 (a club match counts as a Test)", {"club_weight": 1.0}),
 ]
 
 VARIANTS = [
@@ -47,7 +55,7 @@ def main() -> None:
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--skip", type=int, default=4, help="skip the first N rounds of each competition (little history)")
-    ap.add_argument("--set", default="settings", choices=["settings", "roles"], help="which family of variants to compare")
+    ap.add_argument("--set", default="settings", choices=["settings", "roles", "club"], help="which family of variants to compare")
     ap.add_argument("--no-lineups", action="store_true", help="predict starters instead of using the named 23")
     a = ap.parse_args()
     R = load_json(a.rules)
@@ -55,10 +63,10 @@ def main() -> None:
     hist = load_matches(*[d for d in (a.rfu, a.espn) if Path(d).exists()], tackles_include_missed=R["assumptions"]["tackles_include_missed"])
     R, _ = with_measured_scrums(R, hist) if not hist.empty else (R, None)
     per = hist.drop_duplicates("match_key")["competition"].value_counts()
-    comps = [c for c, n in per.items() if n >= 12]
+    comps = [c for c, n in per.items() if n >= 12 and c not in CLUB_COMPETITIONS]
     rows = []
     base = dict(model.PARAMS)
-    for name, ch in (ROLE_VARIANTS if a.set == "roles" else VARIANTS):
+    for name, ch in {"roles": ROLE_VARIANTS, "club": CLUB_VARIANTS}.get(a.set, VARIANTS):
         model.PARAMS.update(base); model.PARAMS.update(ch)
         parts = []
         for c in comps:

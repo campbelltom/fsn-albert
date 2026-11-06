@@ -9,8 +9,8 @@ import math
 import numpy as np
 import pandas as pd
 
-from .common import BENCH_POS, FORWARDS, GROUP_DEFAULT_ROLE, POSITIONS, ROLE_GROUP, SHIRT_POS, group_of_role, role_of
-from .data import MATCH_MIN
+from .common import BENCH_POS, CLUB_COMPETITIONS, FORWARDS, GROUP_DEFAULT_ROLE, POSITIONS, ROLE_GROUP, SHIRT_POS, group_of_role, role_of
+from .data import MATCH_MIN, international
 from .scoring import COMPONENTS, points_from_stats, scrums_for
 
 HALF_LIFE_DAYS = 420.0       # player form
@@ -21,6 +21,7 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
 PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5,   # tuned on 2023-26 walk-forward backtests (scripts/tune.py)
+          "club_weight": 0.0,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches)
           "role_detail": "shirt", "k_team": 8.0}     # role_detail: "shirt" = 11 roles by shirt number, "group" = the 8 fantasy positions; k_team: pseudo 80-min games pulling a team's role baseline to the global one
 
 
@@ -88,6 +89,7 @@ class PlayerModel:
     def __init__(self, hist: pd.DataFrame, pos: pd.Series, asof: pd.Timestamp, rules: dict):
         self.R, self.asof = rules, asof
         h = hist.copy()
+        h["club"] = h["competition"].isin(CLUB_COMPETITIONS)
         h["pos"] = h["pid"].map(pos)
         h["age"] = (asof - h["date"]).dt.days.clip(lower=0)
         h["w"] = wt(h["age"], PARAMS["half_life"])
@@ -96,9 +98,11 @@ class PlayerModel:
         det = PARAMS["role_detail"]
         h["role"] = [role_of(s, det) for s in h["shirt"]]
         known = h.dropna(subset=["role"])
-        self.modal_role = known.groupby("pid")["role"].agg(lambda x: x.value_counts().index[0]).to_dict()
+        modal = lambda d: d.groupby("pid")["role"].agg(lambda x: x.value_counts().index[0]).to_dict() if len(d) else {}  # noqa: E731
+        self.modal_role = modal(known[known["club"]]) | modal(known[~known["club"]])      # his Test role where he has one
         dflt = lambda g: (g if det == "group" else GROUP_DEFAULT_ROLE.get(g, "WING"))  # noqa: E731
         h["role"] = h["role"].fillna(h["pid"].map(self.modal_role)).fillna(h["pos"].map(dflt)).fillna("WING" if det != "group" else "BACK3")
+        full, h = h, h[~h["club"]]                               # baselines, selection and minutes: national-team matches only
         self.h, self.pos, self.det = h, pos, det
         self.tw_known = h["tw"].notna().any()
         cols = self._cols()
@@ -134,18 +138,24 @@ class PlayerModel:
             self.bench_on[sh] = float(len(on) / len(g)) if len(g) >= 8 else (float(len(allon) / len(bn)) if len(bn) else 0.8)
             self.bench_min[sh] = float(on["minutes"].mean()) if len(on) >= 5 else (float(allon["minutes"].mean()) if len(allon) else 22.0)
         # ---- team x role baselines (recency weighted, shrunk to the global role rate)
-        p = h[h["minutes"] >= 1].copy()
+        cw = PARAMS["club_weight"]
+        p = full[(full["minutes"] >= 1) & (~full["club"] | (cw > 0))].copy()
+        p["w"] = p["w"] * np.where(p["club"], cw, 1.0)
         p["e80"] = p["w"] * p["minutes"] / MATCH_MIN
+        # clubs are compared with other clubs: a player's edge over his club's baseline then carries over to his national team's baseline
+        club_a = full[full["club"] & (full["minutes"] >= 10)]
+        self.Gc = {r: per80(g) for r, g in club_a.groupby("role")}
+        club_teams = set(p.loc[p["club"], "team"])
         kT = PARAMS["k_team"]
         Tser = {}
         for s, c in cols.items():
             pp = p if s != "tw" else p[p["tw"].notna()]
             gb = pp.assign(_v=pp[c].fillna(0) * pp["w"]).groupby(["team", "role"]).agg(v=("_v", "sum"), e=("e80", "sum"))
-            gr = np.array([self.g_rate(r, s) for (_, r) in gb.index])
+            gr = np.array([self._club_rate(r, s) if t in club_teams else self.g_rate(r, s) for (t, r) in gb.index])
             gb["rate"] = (gb["v"] + kT * gr) / (gb["e"] + kT)
             Tser[s] = gb["rate"].to_dict()
         keys = set(zip(p["team"], p["role"]))
-        self.T = {key: {s: Tser[s].get(key, self.g_rate(key[1], s)) for s in cols} for key in keys}
+        self.T = {key: {s: Tser[s].get(key, self._club_rate(key[1], s) if key[0] in club_teams else self.g_rate(key[1], s)) for s in cols} for key in keys}
         # ---- player multipliers: observed / expected given the (team, role) baselines of the matches he played
         bdf = pd.DataFrame({s: [self.T[(t, r)][s] for t, r in zip(p["team"], p["role"])] for s in cols}, index=p.index)
         mask = {s: (p["tw"].notna().astype(float) if s == "tw" else 1.0) for s in cols}
@@ -156,6 +166,10 @@ class PlayerModel:
         rbar = (ex / ee).replace([np.inf, -np.inf], np.nan).fillna(0.0)
         u = ((obs + kk * rbar) / (ex + kk * rbar)).where((ex > 1e-9) & (rbar > 0), 1.0).clip(0.2, 5.0)
         self.u = {pid: row.to_dict() for pid, row in u.iterrows()}
+
+    def _club_rate(self, role: str, s: str) -> float:
+        v = self.Gc.get(role, {}).get(s)
+        return float(v) if v is not None else self.g_rate(role, s)
 
     def g_rate(self, role: str, s: str) -> float:
         g = self.G.get(role)
@@ -234,7 +248,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             overrides: dict | None = None, max_age_days: int = 450, scope_teams: set | None = None, lineup_map: dict | None = None, only_pids: set | None = None) -> dict:
     """Returns {players: [...], rounds: [...]} ready for export. scope_teams: only players whose current team is in it (None = everyone)."""
     overrides = overrides or {}
-    tm = TeamModel(hist, asof)
+    nat = international(hist)
+    tm = TeamModel(nat, asof)
     pm = PlayerModel(hist, pos, asof, rules)
     R = rules
     a = R["assumptions"]
@@ -243,7 +258,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     include = set(overrides.get("include", []))
 
     # current team per player = team of latest appearance (override wins)
-    latest = hist.sort_values("date").groupby("pid").tail(1).set_index("pid")
+    latest = nat.sort_values("date").groupby("pid").tail(1).set_index("pid")
     cand = []
     for pid, r in latest.iterrows():
         if pid in exclude or (only_pids is not None and pid not in only_pids):

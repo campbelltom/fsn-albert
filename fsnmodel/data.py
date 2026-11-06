@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .common import BENCH_POS, SHIRT_POS, norm_team
+from .common import CLUB_COMPETITIONS, BENCH_POS, SHIRT_POS, norm_team
 
 MATCH_MIN = 80
 ERR_FROM_TC = 0.5     # RFU has turnovers conceded, not knock-ons/forward passes: assume half are handling errors
@@ -121,14 +121,22 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
     return resolve_ids(df.sort_values(["date", "match_key"]).reset_index(drop=True))
 
 
+def international(df: pd.DataFrame) -> pd.DataFrame:
+    """The national-team matches in a history (club matches only feed player form)."""
+    return df[~df["competition"].isin(CLUB_COMPETITIONS)]
+
+
 def assign_positions(df: pd.DataFrame, overrides: dict | None = None) -> pd.Series:
-    """Player id -> fantasy position group: modal starting position (recency weighted), else bench shirt."""
+    """Player id -> fantasy position group: modal starting position (recency weighted), else bench shirt.
+    National-team matches decide where they exist, since a player's club position may not be his Test position."""
     ov = (overrides or {}).get("players", {})
     out = {}
     last = df["date"].max()
     for pid, g in df.groupby("pid"):
         if pid in ov and ov[pid].get("pos"):
             out[pid] = ov[pid]["pos"]; continue
+        nat = international(g)
+        g = nat if len(nat) else g
         st = g[g["started"] & g["shirt"].notna()]
         if len(st):
             w = 0.5 ** ((last - st["date"]).dt.days / 500.0)

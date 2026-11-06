@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from fsnmodel.common import load_json  # noqa: E402
+from fsnmodel.common import CLUB_COMPETITIONS, load_json  # noqa: E402
 from fsnmodel.data import load_matches, with_measured_scrums  # noqa: E402
 from fsnmodel.evaluate import evaluate_snapshots, report, walk_forward  # noqa: E402
 
@@ -39,7 +39,7 @@ def main() -> None:
     else:
         per = hist.drop_duplicates("match_key")["competition"].value_counts().to_dict()
         out.append(f"# Backtest\n\nHistory: {hist['match_key'].nunique()} matches with player stats, by competition: {per}.\n")
-        comps = [c for c, n in per.items() if n >= 6] if a.competition == "all" else [a.competition]
+        comps = [c for c, n in per.items() if n >= 6 and c not in CLUB_COMPETITIONS] if a.competition == "all" else [a.competition]
         if not comps:
             out.append("No competition has enough matches with player stats to backtest yet.\n")
         for c in comps:
