@@ -111,7 +111,7 @@ select.sel{height:34px;border:0;border-radius:10px;background:var(--card);paddin
 .fx{background:var(--card);border-radius:14px;margin-bottom:8px;overflow:hidden}
 .fx h3{margin:0;padding:10px 12px 4px;font:700 1rem var(--num)}
 .fx .m{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font:600 .95rem var(--num)}
-.fx .m .r{text-align:right} .fx .ko{text-align:center;font:600 .74rem var(--body);color:var(--ink2);margin-bottom:3px;white-space:nowrap} .fx .m small{display:block;font:500 .72rem var(--body);color:var(--ink2)}
+.fx .m .r{text-align:right} .dt{background:var(--card);border-radius:14px;margin-bottom:8px;padding:10px 12px}.dt h3{margin:0 0 6px;font:700 1rem var(--num)}.dt table{width:100%;border-collapse:collapse;font:500 .82rem var(--body)}.dt td,.dt th{padding:4px 0;border-top:1px solid var(--line);text-align:right}.dt td:first-child,.dt th:first-child{text-align:left}.dt th{font-weight:600;color:var(--ink2)}.dt .big{font:700 1.5rem var(--num)}.dt .kp{display:flex;gap:18px;flex-wrap:wrap}.dt .kp small{display:block;font:500 .72rem var(--body);color:var(--ink2)}.fx .ko{text-align:center;font:600 .74rem var(--body);color:var(--ink2);margin-bottom:3px;white-space:nowrap} .fx .m small{display:block;font:500 .72rem var(--body);color:var(--ink2)}
 .pbar{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:4px;width:90px}.pbar i{display:block;height:100%;background:var(--ink)}
 
 footer{padding:6px 2px 110px;color:var(--ink2);font-size:.78rem;max-width:66ch}
@@ -170,6 +170,7 @@ footer p{margin:0 0 6px}
       <div class="panel" id="sqLists" hidden></div>
     </section>
     <section id="tabFixtures" hidden></section>
+    <section id="tabData" hidden></section>
     <footer id="foot"></footer>
   </div>
 
@@ -177,6 +178,7 @@ footer p{margin:0 0 6px}
     <button data-tab="Players" aria-pressed="true">Players</button>
     <button data-tab="Squad" aria-pressed="false">Squad</button>
     <button data-tab="Fixtures" aria-pressed="false">Fixtures</button>
+    <button data-tab="Data" aria-pressed="false">Data</button>
   </div></div>
 </main>
 
@@ -251,10 +253,10 @@ function start(data){
   if (!D.rules.triple_captain_multiplier) $('#sqTriple').parentElement.hidden = true;
   $('#sqGo').onclick = runSquad;
   $('#sqClear').onclick = () => { keep.clear(); ban.clear(); saveLists(); renderList(); renderLists(); };
-  renderFixtures(); renderFoot(); renderList(); renderLists();
+  renderFixtures(); renderData(); renderFoot(); renderList(); renderLists();
 }
 function showTab(t){
-  for (const n of ['Players','Squad','Fixtures']) $('#tab'+n).hidden = n !== t;
+  for (const n of ['Players','Squad','Fixtures','Data']) $('#tab'+n).hidden = n !== t;
   $('#playersBar').hidden = t !== 'Players';
   document.querySelectorAll('.dock button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === t));
   window.scrollTo(0, 0);
@@ -344,6 +346,27 @@ function renderFixtures(){
     <div class="m"><div>${m.home}<small>exp. ${fmt(m.xHome,0)} pts</small></div>
     <div><div class="ko">${when(m)}</div><div class="pbar" title="home win probability"><i style="width:${m.pHome*100}%"></i></div><small style="text-align:center">${Math.round(m.pHome*100)}% / ${Math.round((1-m.pHome)*100)}%</small></div>
     <div class="r">${m.away}<small>exp. ${fmt(m.xAway,0)} pts</small></div></div>`).join('')}</div>`).join('');
+}
+function renderData(){
+  const I = D.ingest;
+  if (!I) { $('#tabData').innerHTML = '<div class="empty">No ingestion summary in this build.</div>'; return; }
+  const tb = (head, rows) => `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>`;
+  const dt = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+  const C = I.coverage, src = I.bySource || {};
+  const gen = new Date(D.generated);
+  const box = (t, body) => `<div class="dt"><h3>${t}</h3>${body}</div>`;
+  const kp = (n, l) => `<div><span class="big">${n}</span><small>${l}</small></div>`;
+  $('#tabData').innerHTML =
+    box('What the model has ingested', `<div class="kp">${kp(I.matches, 'matches')}${kp(C.rows.toLocaleString('en-GB'), 'player-match rows')}${kp(src.rfu || 0, 'from RFU / Opta')}${kp(src.espn || 0, 'from ESPN fallback')}</div>
+      <div class="info">${dt(I.firstMatch)} to ${dt(I.lastMatch)}. ${I.rfuFiles} RFU match files on disk${I.rfuMissing ? ', ' + I.rfuMissing + ' listed as not yet available' : ''}. Built ${gen.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}.</div>`) +
+    box('By competition', tb(['Competition','Matches','RFU','ESPN','Span'], I.competitions.map(c => [c.name, c.matches, c.rfu, c.espn, c.from.slice(0,4) + (c.to.slice(0,4) !== c.from.slice(0,4) ? '–' + c.to.slice(0,4) : '')]))) +
+    box('Stat completeness', tb(['Measure','Share of rows'], [
+      ['Real substitution minutes (not estimated)', C.realMinutesPct + '%'],
+      ['Turnovers won recorded', C.turnoversPct + '%'],
+      ['Shirt number known', C.shirtPct + '%']]) + '<div class="info">ESPN rows have flat estimated minutes and no turnovers won, so these rise as more RFU matches are scraped.</div>') +
+    box('Named lineups', tb(['Round','Teams named'], I.lineups.map(r => ['Round ' + r.round, r.named + ' of ' + r.teams])) + '<div class="info">Teams without a named lineup use predicted starters.</div>') +
+    (I.pool ? box('Official player pool', tb(['','Players'], [['In the game', I.pool.size], ['Matched to match data', I.pool.matched], ['No match history (excluded)', I.pool.unmatched], ['Shown on the Players tab', I.pool.inSite]])) : '') +
+    box('Most recent matches', tb(['Date','Match','Score','Source'], I.latest.slice().reverse().map(r => [dt(r.date).replace(/ \d{4}$/, ''), r.home + ' v ' + r.away, r.score, r.source.toUpperCase()])));
 }
 function renderFoot(){
   const P = D.rules.points, S = D.rules.squad;
