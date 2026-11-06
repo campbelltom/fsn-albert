@@ -111,7 +111,7 @@ select.sel{height:34px;border:0;border-radius:10px;background:var(--card);paddin
 .fx{background:var(--card);border-radius:14px;margin-bottom:8px;overflow:hidden}
 .fx h3{margin:0;padding:10px 12px 4px;font:700 1rem var(--num)}
 .fx .m{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font:600 .95rem var(--num)}
-.fx .m .r{text-align:right} .fx .m small{display:block;font:500 .72rem var(--body);color:var(--ink2)}
+.fx .m .r{text-align:right} .fx .ko{text-align:center;font:600 .74rem var(--body);color:var(--ink2);margin-bottom:3px;white-space:nowrap} .fx .m small{display:block;font:500 .72rem var(--body);color:var(--ink2)}
 .pbar{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:4px;width:90px}.pbar i{display:block;height:100%;background:var(--ink)}
 
 footer{padding:6px 2px 110px;color:var(--ink2);font-size:.78rem;max-width:66ch}
@@ -338,9 +338,11 @@ function drawSquad(res, rs, ms){
 
 /* ---------- fixtures & footer ---------- */
 function renderFixtures(){
-  $('#tabFixtures').innerHTML = D.rounds.map(r => `<div class="fx"><h3>Round ${r.round}</h3>${r.matches.map(m => `
+  const when = m => { const d = new Date(m.date + 'T12:00:00Z'); return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}) + (m.ko ? ' · ' + m.ko : ''); };
+  const key = m => m.date + ' ' + (m.ko || '99:99');
+  $('#tabFixtures').innerHTML = '<p class="info" style="margin:0 0 8px">Kick-off times are UK time.</p>' + D.rounds.map(r => `<div class="fx"><h3>Round ${r.round}</h3>${r.matches.slice().sort((a,b) => key(a) < key(b) ? -1 : 1).map(m => `
     <div class="m"><div>${m.home}<small>exp. ${fmt(m.xHome,0)} pts</small></div>
-    <div><div class="pbar" title="home win probability"><i style="width:${m.pHome*100}%"></i></div><small style="text-align:center">${Math.round(m.pHome*100)}% / ${Math.round((1-m.pHome)*100)}%</small></div>
+    <div><div class="ko">${when(m)}</div><div class="pbar" title="home win probability"><i style="width:${m.pHome*100}%"></i></div><small style="text-align:center">${Math.round(m.pHome*100)}% / ${Math.round((1-m.pHome)*100)}%</small></div>
     <div class="r">${m.away}<small>exp. ${fmt(m.xAway,0)} pts</small></div></div>`).join('')}</div>`).join('');
 }
 function renderFoot(){
