@@ -114,3 +114,56 @@ def test_backtest_runs():
 if __name__ == "__main__":
     test_lineups_and_nc_scoring(); test_position_flexibility(); test_backtest_runs(); 
     test_minutes(); test_scoring_2025(); test_pipeline_and_schema(); print("ok")
+
+
+# ---- schedule: moving on by itself ----
+def test_schedule_moves_on_and_builds_finals():
+    import pandas as pd
+    from datetime import datetime, timezone
+    from fsnmodel.schedule import kickoff, status, standings, finals_fixtures
+    fx = [{"round": 4, "date": "2026-11-06", "ko": "20:10", "home": "Ireland", "away": "Argentina"},
+          {"round": 4, "date": "2026-11-08", "ko": "15:10", "home": "England", "away": "Australia"},
+          {"round": 5, "date": "2026-11-13", "ko": "20:10", "home": "France", "away": "South Africa"}]
+    assert kickoff(fx[0]) == datetime(2026, 11, 6, 20, 10, tzinfo=timezone.utc)      # November: UK time is UTC
+    assert kickoff({"date": "2026-07-04", "ko": "15:00"}) == datetime(2026, 7, 4, 14, 0, tzinfo=timezone.utc)   # July: BST
+    u = lambda *a: datetime(*a, tzinfo=timezone.utc)                                   # noqa: E731
+    assert status(fx, u(2026, 11, 8, 16, 0))["current"] == 4                           # last match of R4 still in play
+    s = status(fx, u(2026, 11, 8, 18, 30))
+    assert s["finished"] == [4] and s["current"] == 5 and s["next_kickoff"] == u(2026, 11, 13, 20, 10)
+    assert status(fx, u(2026, 11, 20, 0, 0))["current"] is None
+    # tables: 4 tries in a loss by <=7 earns both bonuses; try bonus for winners; sorted per hemisphere
+    rows = []
+    def match(k, a, b, pa, pb, ta, tb):
+        for t, o, pf, pq, tr in ((a, b, pa, pb, ta), (b, a, pb, pa, tb)):
+            rows.append(dict(match_key=k, team=t, opp=o, pf=pf, pa=pq, tries=tr, competition="Nations Championship"))
+    match("m1", "England", "Fiji", 30, 25, 4, 3)       # England 4+1, Fiji 0+1
+    match("m2", "France", "Japan", 20, 20, 2, 2)       # 2 each
+    t = standings(pd.DataFrame(rows), "Nations Championship", {"England": "N", "France": "N", "Fiji": "S", "Japan": "S"})
+    pts = dict(zip(t["team"], t["pts"]))
+    assert pts == {"England": 5, "Fiji": 1, "France": 2, "Japan": 2}
+    assert list(t[t.hemi == "N"]["team"]) == ["England", "France"] and list(t[t.hemi == "S"]["team"]) == ["Japan", "Fiji"]
+    # finals wait for all 36 league results
+    comp = {"short": "Nations Championship", "hemisphere": {"England": "N", "France": "N", "Fiji": "S", "Japan": "S"}}
+    ff, note = finals_fixtures(pd.DataFrame(rows), comp, fx, 7, ROOT)
+    assert ff == [] and "2 of 36" in note
+
+
+def test_finals_pairings_from_full_league():
+    import pandas as pd
+    from fsnmodel.schedule import finals_fixtures
+    N = ["Ireland", "France", "England", "Scotland", "Italy", "Wales"]
+    S = ["South Africa", "New Zealand", "Australia", "Argentina", "Fiji", "Japan"]       # strength order, strongest first
+    rows, k = [], 0
+    for i, n in enumerate(N):
+        for j, s in enumerate(S):
+            k += 1
+            north_wins = i < j                                  # the better-placed side wins; the pair (i, j) with i < j goes north
+            pn, ps = (30, 10) if north_wins else (10, 30)
+            for t, o, pf, pq in ((n, s, pn, ps), (s, n, ps, pn)):
+                rows.append(dict(match_key=f"m{k}", team=t, opp=o, pf=pf, pa=pq, tries=3, competition="Nations Championship"))
+    comp = {"short": "Nations Championship", "hemisphere": {**{t: "N" for t in N}, **{t: "S" for t in S}}}
+    ff, note = finals_fixtures(pd.DataFrame(rows), comp, [], 7, ROOT)
+    assert len(ff) == 6 and all(f["round"] == 7 for f in ff)
+    final = [f for f in ff if f["final"] == 1][0]
+    assert (final["home"], final["away"], final["date"], final["ko"]) == ("Ireland", "South Africa", "2026-11-29", "16:40")
+    assert {f["final"]: (f["date"], f["ko"]) for f in ff}[6] == ("2026-11-27", "16:40")

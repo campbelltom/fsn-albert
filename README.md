@@ -58,3 +58,13 @@ compares it with an exact MILP (HiGHS); on test data it is within 0.3%.
 ## Deploy
 Actions (`.github/workflows/update.yml`) scrape, run the model, encrypt with the `FSN_SITE_PASSWORD` secret and publish to GitHub Pages every 3 hours and on push.
 Local: `python tests/make_fixture.py /tmp/rfu && python scripts/run_production.py --rfu /tmp/rfu --out site/data --no-encrypt`, then serve `site/`.
+
+## Moving on by itself
+- **Rounds** (`fsnmodel/schedule.py`): a round is finished 3 hours after its last kick-off (times in `ko`, UK time). Only unfinished rounds are projected, so the site
+  starts at the next round as soon as the previous one ends. Frozen snapshots of finished rounds are left alone and scored against the actual results.
+  After the last league round, **finals weekend** (round 7) is built from the two hemisphere tables once all 36 league results are in the data
+  (4 for a win, 2 for a draw, 1 try bonus, 1 losing bonus; then wins, points difference). Put pairings in `config/finals.json` to set them by hand.
+- **Results and lineups**: every 3 hours Actions pulls ESPN results (scores update team strength) and named squads (for the live rounds, finals included).
+- **Player stats**: RFU refuses GitHub's runners, so `scripts/sync_rfu.py --push` (find new matches, scrape, commit, push, rebuild) has to run on your own machine.
+  `.github/workflows/scrape-rfu.yml` does that three times a day through a self-hosted runner: install one on that machine (repo Settings > Actions > Runners >
+  New self-hosted runner, run as a service, with Python and Git installed). Jobs queue while the machine is off. Alternatively schedule the script with cron / launchd / Task Scheduler.

@@ -6,13 +6,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from fsnmodel.common import load_json, norm_team  # noqa: E402
 from fsnmodel.espn import BASE, _get, events  # noqa: E402
+from fsnmodel.data import international, load_matches  # noqa: E402
 from fsnmodel.lineups import parse_rosters  # noqa: E402
+from fsnmodel.schedule import all_fixtures, status  # noqa: E402
 
 
 def main() -> None:
@@ -23,7 +26,13 @@ def main() -> None:
     cfg = load_json(ROOT / "config" / "competitions.json")
     key = a.competition or cfg["active"]
     comp = cfg["competitions"][key]
-    fx = load_json(ROOT / comp["fixtures"])
+    season = load_json(ROOT / comp["fixtures"])["season"]
+    dirs = [d for d in (ROOT / "data" / "rfu", ROOT / "data" / "espn") if d.exists()]
+    hist = load_matches(*dirs) if comp.get("finals_round") and dirs else None
+    fixtures, _ = all_fixtures(comp, international(hist) if hist is not None else None, ROOT)   # includes the finals once they are set
+    live = set(status(fixtures, datetime.now(timezone.utc))["live"])
+    fixtures = [f for f in fixtures if f["round"] in live]                                      # finished rounds need no rosters
+    fx = {"season": season, "fixtures": fixtures}
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     league = comp["espn_league"]
     evs = events(fx["season"], league)
@@ -34,7 +43,7 @@ def main() -> None:
         sides = {x["homeAway"]: x["team"]["displayName"] for x in c["competitors"]}
         home, away = norm_team(sides.get("home")), norm_team(sides.get("away"))
         done = ev.get("status", {}).get("type", {}).get("completed", False)
-        match = [f for f in fx["fixtures"] if f["home"] == home and f["away"] == away]
+        match = [f for f in fx["fixtures"] if {f["home"], f["away"]} == {home, away}]    # finals: ESPN may list the sides the other way round
         if not match and not (done and diag < 2):
             continue
         try:

@@ -20,6 +20,7 @@ from fsnmodel.export import encrypt_json  # noqa: E402
 from fsnmodel.lineups import build_lineup_map, load_all  # noqa: E402
 from fsnmodel.evaluate import save_snapshots  # noqa: E402
 from fsnmodel.model import project  # noqa: E402
+from fsnmodel.schedule import all_fixtures, status  # noqa: E402
 from fsnmodel.pool import load_pool, match_history, match_one  # noqa: E402
 
 
@@ -121,8 +122,20 @@ def main() -> None:
         notes.append(scr_note)
     ov = load_json(ROOT / "config" / "overrides.json", {})
     pos = assign_positions(hist, ov)
-    fx = load_json(ROOT / comp["fixtures"])
-    asof = pd.Timestamp(datetime.now(timezone.utc).date())
+    now = datetime.now(timezone.utc)
+    league_fx = load_json(ROOT / comp["fixtures"])
+    all_fx, sched_notes = all_fixtures(comp, international(hist), ROOT)
+    notes += sched_notes
+    st = status(all_fx, now)
+    if st["live"]:
+        live_fx = [f for f in all_fx if f["round"] in st["live"]]
+        if st["finished"]:
+            notes.append("Round" + ("s " if len(st["finished"]) > 1 else " ") + ", ".join(map(str, st["finished"])) + " finished: projections start at round " + str(st["current"]) + ".")
+    else:
+        live_fx = all_fx
+        notes.append("Every round has been played: showing the last projections.")
+    fx = {**league_fx, "fixtures": live_fx}
+    asof = pd.Timestamp(now.date())
     if (hist["source"] == "espn").any():
         n = hist[hist["source"] == "espn"]["match_key"].nunique()
         notes.append(f"{n} historical match(es) came from the ESPN fallback: sub minutes estimated, no turnovers-won data.")
@@ -174,7 +187,7 @@ def main() -> None:
     summarise(hist, res)
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
-        "season": fx["season"], "competition": comp["label"], "competitionKey": key, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
+        "season": fx["season"], "competition": comp["label"], "competitionKey": key, "progress": {"finished": st["finished"], "current": st["current"], "nextKickoff": st["next_kickoff"].isoformat(timespec="minutes") if st["next_kickoff"] else None}, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
         "ingest": ingest_summary(hist, a.rfu, lm, fx, pool, used if pool is not None else set(), res["players"]), "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
     }
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)

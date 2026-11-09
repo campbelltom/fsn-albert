@@ -383,10 +383,17 @@ function drawSquad(res, rs, ms){
 }
 
 /* ---------- fixtures & footer ---------- */
+function progressLine(){
+  const P = D.progress; if (!P) return '';
+  const done = P.finished && P.finished.length ? 'Round' + (P.finished.length > 1 ? 's ' : ' ') + P.finished.join(', ') + ' finished. ' : '';
+  if (!P.current) return done + 'No rounds left to project.';
+  const k = P.nextKickoff ? new Date(P.nextKickoff).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'}) : null;
+  return done + 'Projecting from round ' + P.current + (k ? ', next kick-off ' + k + '.' : ', in play.');
+}
 function renderFixtures(){
   const when = m => { const d = new Date(m.date + 'T12:00:00Z'); return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}) + (m.ko ? ' · ' + m.ko : ''); };
   const key = m => m.date + ' ' + (m.ko || '99:99');
-  $('#tabFixtures').innerHTML = '<p class="info" style="margin:0 0 8px">Kick-off times are UK time.</p>' + D.rounds.map(r => `<div class="fx"><h3>Round ${r.round}</h3>${r.matches.slice().sort((a,b) => key(a) < key(b) ? -1 : 1).map(m => `
+  $('#tabFixtures').innerHTML = '<p class="info" style="margin:0 0 8px">' + progressLine() + ' Kick-off times are UK time.</p>' + D.rounds.map(r => `<div class="fx"><h3>Round ${r.round}</h3>${r.matches.slice().sort((a,b) => key(a) < key(b) ? -1 : 1).map(m => `
     <div class="m"><div>${m.home}<small>exp. ${fmt(m.xHome,0)} pts</small></div>
     <div><div class="ko">${when(m)}</div><div class="pbar" title="home win probability"><i style="width:${m.pHome*100}%"></i></div><small style="text-align:center">${Math.round(m.pHome*100)}% / ${Math.round((1-m.pHome)*100)}%</small></div>
     <div class="r">${m.away}<small>exp. ${fmt(m.xAway,0)} pts</small></div></div>`).join('')}</div>`).join('');

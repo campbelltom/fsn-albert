@@ -36,7 +36,8 @@
     "Fiji": "S"
    },
    "espn_league": 17567,
-   "pool": "config/nc_pool.csv"
+   "pool": "config/nc_pool.csv",
+   "finals_round": 7
   },
   "six-nations": {
    "label": "Six Nations 2027",
