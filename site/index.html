@@ -374,8 +374,10 @@ function drawSquad(res, rs, ms){
   $('#sqSum').innerHTML = `<div class="sum"><div><b>${fmt(res.points)}</b><span>projected points (${rs.length} round${rs.length>1?'s':''}, captain, supersub${res.chips && res.chips.best.value > 0 ? ' and chips' : ''})</span></div><div><b>${money(res.cost)}</b><span>of ${money(res.budget)}</span></div><div><b>${fmt(res.points/rs.length)}</b><span>per round</span></div></div>` + chipPanel(res, rs);
   const tile = (p, extra='') => { const t = total(p, rs); return `<div class="tile p-${p.pos}">${extra}<div class="n">${p.name}</div><div class="m">${p.team.slice(0,3).toUpperCase()} · ${money(p.price)}</div><div class="v">${fmt(t)}</div></div>`; };
   const cap = Object.keys(capCount).sort((a,b) => capCount[b]-capCount[a])[0], sub = Object.keys(subCount).sort((a,b) => subCount[b]-subCount[a])[0];
-  const lines = [['BACK3'],['CEN'],['FH','SH'],['BR'],['LOCK'],['PROP','HOOK']].map(g => {
-    const ps = res.xv.filter(p => g.includes(p.pos)).sort((a,b) => g.indexOf(a.pos)-g.indexOf(b.pos));
+  // team-sheet order: front row at the top (prop, hooker, prop), back three at the bottom
+  const lines = [['PROP','HOOK'],['LOCK'],['BR'],['SH','FH'],['CEN'],['BACK3']].map(g => {
+    let ps = res.xv.filter(p => g.includes(p.pos)).sort((a,b) => g.indexOf(a.pos)-g.indexOf(b.pos));
+    if (g[0] === 'PROP') { const pr = ps.filter(p => p.pos === 'PROP'), hk = ps.filter(p => p.pos === 'HOOK'); ps = [...pr.slice(0, 1), ...hk, ...pr.slice(1)]; }
     return `<div class="line">${ps.map(p => tile(p, p.id===cap ? '<span class="cap">C</span>' : '')).join('')}</div>`;
   }).join('');
   $('#sqView').innerHTML = `<div class="pitch">${lines}</div><div class="lbl">Bench</div><div class="line">${res.bench.map(p => tile(p, p.id===sub ? '<span class="cap s">3×</span>' : '')).join('')}</div>
