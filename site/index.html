@@ -293,7 +293,7 @@ function renderList(){
     return `<article class="item p-${p.pos} ${state.open===p.id?'open':''}" data-id="${p.id}">
       <button class="row" aria-expanded="${state.open===p.id}">
         <span><span class="l1"><span class="chip">${POS_SHORT[p.pos]}</span><span class="nm">${p.name}${tag}</span>${fl}</span>
-          <span class="l2"><b>${p.team}</b><span>·</span><span>${money(p.price)}${p.priceEst?'*':''}</span><span>·</span><span>${Math.round(p.pStart*100)}% start</span></span></span>
+          <span class="l2"><b>${p.team}</b><span>·</span><span>${money(p.price)}${p.priceEst?'*':''}</span><span>·</span><span>~${Math.round(p.eMin)} min</span></span></span>
         <span class="strip">${bars}</span>
         <span class="tot"><div class="a">${fmt(t)}</div><div class="b">${fmt(t/p.price,2)}/${unit()}</div></span>
       </button>
@@ -307,7 +307,7 @@ function detail(p, rs){
   const gws = p.exp.map((x,i) => { const f = p.fx[i]; return `<div><div class="g">R${D.rounds[i].round}</div><div class="e">${fmt(x)}</div><div class="o">${f ? (f.home?'':'@')+f.opp.slice(0,3).toUpperCase()+(f.ln?' · '+f.ln+(f.rl?' '+f.rl:''):'') : '–'}</div></div>`; }).join('');
   return `<div class="detail">
     <div><h3>Round by round</h3><div class="gws">${gws}</div>
-      <div class="info">${p.roles && p.roles.length > 1 ? 'Plays ' + p.roles.map(r => (ROLE_LABEL[r[0]] || r[0]) + ' ' + Math.round(r[1]*100) + '%').join(', ') + '. ' : ''}${p.own != null ? p.own + '% of managers own him' + (p.poolPts != null ? ' · ' + p.poolPts + ' game points so far' : '') + '. ' : ''}${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${Math.round(p.pStart*100)}% to start · ${Math.round(p.pSub*100)}% to come off the bench · about ${Math.round(p.eMin)} min · ${p.caps} caps in the data</div>
+      <div class="info">${p.roles && p.roles.length > 1 ? 'Plays ' + p.roles.map(r => (ROLE_LABEL[r[0]] || r[0]) + ' ' + Math.round(r[1]*100) + '%').join(', ') + '. ' : ''}${p.own != null ? p.own + '% of managers own him' + (p.poolPts != null ? ' · ' + p.poolPts + ' game points so far' : '') + '. ' : ''}${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${p.fx.some(f => f && !f.ln) ? 'Rounds without a named 23 assume he starts. ' : ''}About ${Math.round(p.eMin)} min a match · ${p.caps} caps in the data</div>
       <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep in squad'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
     <div><h3>Where the points come from</h3><div class="comp">${rows}</div></div></div>`;
 }
