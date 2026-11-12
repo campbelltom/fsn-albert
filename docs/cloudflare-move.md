@@ -1,5 +1,17 @@
 # Moving the site to Cloudflare Pages (so the repo can be private)
 
+## Status (12 November 2026): prepared, not started
+
+- The Cloudflare deploy step is in the workflow and stays off: no Cloudflare secrets are set, so the site deploys to
+  GitHub Pages only (last deploy: Nations Championship round 4, 12 Nov).
+- Next: steps 1-4 below (yours), then step 5 (Claude, with your go-ahead).
+- Related, also waiting: the "Scrape RFU stats" workflow needs a self-hosted runner and none is registered, so its runs
+  queue and are cancelled. Until that is settled, run `python scripts/sync_rfu.py --push` the day after each round.
+  A self-hosted runner on a public repository lets outside pull requests run code on that machine, so it is safest
+  after the repository is private. The workflow can be paused meanwhile: *Actions* → *Scrape RFU stats* → *…* → *Disable workflow*.
+- The RFU site briefly showed a "confirm you are human" check on 12 Nov; it cleared within the hour. The scrapers stop
+  on such checks and never try to get past them.
+
 The site is built by GitHub Actions as before. The workflow (`.github/workflows/update.yml`) already has a
 "Deploy to Cloudflare Pages" step that stays switched off until the two secrets below exist. Until then the site
 keeps deploying to GitHub Pages, so nothing breaks while you work through this list.
