@@ -48,7 +48,8 @@ His listed fantasy position (for squad slots) does not change, and it is what th
 ## Named lineups
 Rugby teams are named ~48h before kick-off, so starters are not predicted once a team is named: `scripts/fetch_lineups.py` reads ESPN rosters (and `config/lineups.json`
 can name a team by hand, surnames are enough). Starters (1-15) get full minutes from their own history, bench players get a probability of coming on and minutes by shirt
-number (measured from history), players left out of the 23 score 0, and debutants with no history use position averages. Before a team is named every player is valued
+number (measured from history), players left out of the 23 score 0, a starter whose position group (front row, locks and back row,
+scrum-half, backs) has no replacement on the bench stays on longer (27% less time off, measured; mostly scrum-halves with no replacement 9), and debutants with no history use position averages. Before a team is named every player is valued
 as a starter (no selection guess), so those rounds are provisional. The backtest uses the real named 23 and is scored on them.
 
 ## Rules / config

@@ -21,8 +21,23 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
 PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5,   # tuned on 2023-26 walk-forward backtests (scripts/tune.py)
+          "bench_aware": True,                       # named 23: a starter whose position group has no replacement on the bench stays on longer
+          "uncovered_keep": 0.27,                    # ... losing this share fewer minutes (2023-26: 0.26-0.31; 2025-26 out of sample: error 10.8 -> 10.0)
           "club_weight": 0.1,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches); 0.1 chosen by scripts/tune.py --set club
           "role_detail": "shirt", "k_team": 8.0}     # role_detail: "shirt" = 11 roles by shirt number, "group" = the 8 fantasy positions; k_team: pseudo 80-min games pulling a team's role baseline to the global one
+
+
+def minute_group(shirt: int, pos: str | None) -> str:
+    """Who can replace whom: starters by shirt; replacements by the position they play (a 6/2 bench puts a forward in 21)."""
+    if shirt <= 15:
+        return "FR" if shirt <= 3 else "LBR" if shirt <= 8 else "SH" if shirt == 9 else "BACK"
+    return "FR" if pos in ("PROP", "HOOK") else "LBR" if pos in ("LOCK", "BR") else "SH" if pos == "SH" else "BACK"
+
+
+def uncovered_groups(named: dict) -> set:
+    """Position groups of a named 23 with starters but no replacement who plays there. named: {pid: (shirt, group)}."""
+    starting = {g for sh, g in named.values() if sh <= 15}
+    return starting - {g for sh, g in named.values() if sh >= 16}
 
 
 def wt(days: pd.Series | np.ndarray, hl: float) -> np.ndarray:
@@ -254,6 +269,19 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         for pid_, (sh_, nm_) in mp_.items():
             if pid_ not in latest.index and pid_ not in extras:
                 extras[pid_] = (nm_, tm_, sh_)
+    cover_cache: dict = {}
+
+    def uncovered(rd_: int, team_: str) -> set:
+        """Position groups this named 23 cannot replace from the bench (cached per round and team)."""
+        if (rd_, team_) not in cover_cache:
+            named = {}
+            for pid_, (sh_, nm_) in lineup_map[(rd_, team_)].items():
+                if sh_:
+                    p_ = ov.get(pid_, {}).get("pos") or (pos[pid_] if pid_ in pos.index else None) or (SHIRT_POS.get(sh_) if sh_ <= 15 else BENCH_POS.get(sh_))
+                    named[pid_] = (sh_, minute_group(sh_, p_))
+            cover_cache[(rd_, team_)] = uncovered_groups(named)
+        return cover_cache[(rd_, team_)]
+
     rounds = sorted({f["round"] for f in fixtures})
     by_round_team = {}
     for f in fixtures:
@@ -322,7 +350,10 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                     roles = {rl: 1.0}
                     if ent[0] <= 15:
                         ln, ps, pb = "S", 1.0 * avail, 0.0
+                        if PARAMS["bench_aware"] and minute_group(ent[0], None) in uncovered(rd, team):
+                            em_start += PARAMS["uncovered_keep"] * (MATCH_MIN - em_start)
                     else:
+                        # replacements: their bench shirt's usual pattern (sharing a group's minutes by bench make-up backtested worse)
                         ln, ps, pb = "B", 0.0, pm.bench_on.get(ent[0], 0.85) * avail
                         em_sub = pm.bench_min.get(ent[0], em_sub)
             exp_min = ps * em_start + pb * em_sub

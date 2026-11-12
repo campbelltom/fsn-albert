@@ -48,7 +48,7 @@ def _proj_to_rows(res: dict, rd_idx: int = 0) -> pd.DataFrame:
     for p in res["players"]:
         c = p["comp"][rd_idx]
         rows.append(dict(pid=p["id"], name=p["name"], team=p["team"], pos=p["pos"], exp=sum(v for k, v in c.items() if k not in ("potm", "team")),
-                         ln=(p["fx"][rd_idx] or {}).get("ln"), caps=p["caps"]))
+                         ln=(p["fx"][rd_idx] or {}).get("ln"), emin=p["eMin"], caps=p["caps"]))
     return pd.DataFrame(rows)
 
 
