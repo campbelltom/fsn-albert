@@ -21,6 +21,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Cloudflare Pages (docs/cloudflare-move.md) switches on once both secrets are set; only the true/false flag is exposed here
+      CF_ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,6 +65,15 @@ jobs:
           }
       - name: Assemble site
         run: cp site/index.html site/squad.js _site/
+      - name: Deploy to Cloudflare Pages
+        if: env.CF_ENABLED == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # the project is created on the first run; afterwards this just reports that it exists
+          npx --yes wrangler@3.80.0 pages project create fsn-site --production-branch=main || true
+          npx --yes wrangler@3.80.0 pages deploy _site --project-name=fsn-site --branch=main --commit-dirty=true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
