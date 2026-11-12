@@ -6,7 +6,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    paths: ["fsnmodel/**", "scripts/**", "config/**", "site/**", ".github/workflows/**"]
+    paths: ["fsnmodel/**", "scripts/**", "config/**", "site/**", "data/rfu/**", ".github/workflows/update.yml"]
 
 permissions:
   contents: read

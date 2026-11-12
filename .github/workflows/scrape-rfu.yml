@@ -1,0 +1,32 @@
+name: Scrape RFU stats
+
+# The RFU site refuses GitHub's hosted runners, so this job runs on a self-hosted runner on your own machine
+# (Settings > Actions > Runners > New self-hosted runner; install it as a service). Jobs queue while the machine is off
+# and run when it wakes. Each run finds newly played matches, scrapes them, pushes data/rfu and starts the site rebuild.
+on:
+  schedule:
+    - cron: "30 8,14,20 * * *"      # three times a day; the RFU lists a match the day after it is played
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: scrape-rfu
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: |
+          python -m pip install -r requirements.txt
+          python -m playwright install chromium
+      - name: Find new matches, scrape, push, rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/sync_rfu.py --push

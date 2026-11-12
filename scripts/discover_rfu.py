@@ -64,6 +64,7 @@ def parse_listing(page_html: str, today: date, season_label: str) -> tuple[dict[
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", default=str(ROOT / "config" / "rfu_matches.json"))
+    ap.add_argument("--recent", action="store_true", help="only the current season's listings (about a quarter of the pages): enough for the week-to-week sync")
     ap.add_argument("--dry-run", action="store_true", help="report what would be added without writing")
     a = ap.parse_args()
     path = Path(a.manifest)
@@ -77,7 +78,7 @@ def main() -> None:
         br = pw.chromium.launch()
         page = br.new_context(user_agent="Mozilla/5.0 (fsn-albert personal fantasy model)").new_page()
         for name, query, seasons in SOURCES:
-            for season in seasons:
+            for season in (seasons[-1:] if a.recent else seasons):
                 resp = page.goto(LISTING.format(query=query, season=season), wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(5000)
                 if resp is None or resp.status >= 400:
