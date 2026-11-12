@@ -11,8 +11,11 @@ Same shape as `fpl-projections`: Python model -> encrypted JSON -> single-page s
 - **Which matches:** `python scripts/discover_rfu.py` fills `config/rfu_matches.json` from the RFU site's competition and season filters (Tests,
   Gallagher Prem, Champions Cup, Challenge Cup), then `python scripts/scrape_rfu.py` fetches only the new ones. Run both the day after a round.
 - **Super Rugby Pacific:** `python scripts/scrape_super.py` reads the official match centres (super.rugby, the same Opta tables) into `data/super/`,
-  at most one page every 5 s as the site's robots.txt asks. The page has no shirt numbers: starters, replacements and minutes come from the timeline's
-  substitutions, and team-mates sharing a surname are left out of that match. Each team's stat lines are checked against the score.
+  one page every 10 s (robots.txt asks for 5; long runs were still slowed at 5), pausing 15 minutes after 3 failures in a row. Shirt numbers come
+  from each team's stats table order (15..1 then 16..23, checked against ESPN); substitutions from the timeline. Team-mates sharing a surname are
+  told apart by who is on the pitch, whether a replacement had a stat line, and front-row swaps (97-99% reliable on clear swaps); when none
+  settles it they are left out of that match (2023-26: 165 player-matches of ~16,000, mostly Lonergan, Ioane and Savea). Each team's stat lines
+  are checked against the score (gaps are penalty tries). Files keep the raw extract: `--rebuild` re-applies the rules without fetching.
 - **Club matches** (Prem, Champions Cup, Challenge Cup, Super Rugby) feed player form only: team strength, a player's team, selection and position
   come from Tests. No reliable free per-match player data was found for the URC or Top 14 beyond their European matches.
 - **Fallback: ESPN** public JSON (`fsnmodel/espn.py`) for matches the RFU scrape cannot get. ESPN has no turnovers won and no substitution minutes

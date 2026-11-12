@@ -71,15 +71,17 @@ def season_matches(nav: Polite, year: int) -> list[dict]:
         c = nav.page.content()
         text_at = lambda i: re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " | ", c[max(0, i - 3000):i]))  # noqa: E731
         seen = set()
+        heads = [(d.start(), d.group(0)) for d in DATE_RE.finditer(c)]   # date headings: a busy day's heading can be far above its last match
         for m in LINK_RE.finditer(c):
             if int(m["season"]) != year or m["id"] in seen:
                 continue
-            seen.add(m["id"])
             before = text_at(m.start())
-            dates, card = DATE_RE.findall(before), list(CARD_RE.finditer(re.sub(r"(\| )+", "| ", before)))
+            dates = [h for pos, h in heads if pos < m.start()]
+            card = list(CARD_RE.finditer(re.sub(r"(\| )+", "| ", before)))
             if not dates or not card:
                 continue                                   # not played yet (no FT result)
             k = card[-1]
+            seen.add(m["id"])                              # only once its result card is read: a match is also linked from elsewhere on the page
             out.append({"id": m["id"], "comp": m["comp"], "season": year, "date": dates[-1], "home": k["home"].strip(), "away": k["away"].strip(),
                         "score": {"home": int(k["hs"]), "away": int(k["as"]), "homeName": k["home"].strip(), "awayName": k["away"].strip()},
                         "url": f"{SITE}/superrugby/match-centre/?competition={m['comp']}&season={year}&match={m['id']}"})
@@ -90,6 +92,11 @@ def season_matches(nav: Polite, year: int) -> list[dict]:
 
 def surname(name: str) -> str:
     return (name or "").strip().split(" ")[-1].lower()
+
+
+# Front-rowers are replaced by front-rowers (scrum law): on the 2023-26 timelines a 16-18 replaced a 1-3 in 97% of clear
+# one-for-one swaps, and any other replacement replaced someone else in 99%. Other positions are too fluid to use (6/2 benches).
+FRONT_ROW, FRONT_ROW_BENCH = {1, 2, 3}, {16, 17, 18}
 
 
 def shirts_from_order(order: list[dict]) -> dict[str, int]:
@@ -107,6 +114,7 @@ def shirts_from_order(order: list[dict]) -> dict[str, int]:
 def build(meta: dict, d: dict, subs: list[dict], order: list[dict] | None = None) -> tuple[dict, list[str]]:
     """Match file in the data/rfu shape, plus warnings."""
     warn = []
+    raw_players = json.loads(json.dumps(d["players"]))   # as extracted, before events and shirts are added
     players = d["players"]
     teams = sorted({p.get("team") for p in players if p.get("team")})
     side_team = {"home": meta["home"], "away": meta["away"]}
@@ -135,6 +143,26 @@ def build(meta: dict, d: dict, subs: list[dict], order: list[dict] | None = None
             cands = [p for p in cands if on_pitch[id(p)] == (s["type"] == "off")]
             if s["type"] == "on" and len(cands) > 1:     # nobody comes straight back on in the minute he went off
                 cands = [p for p in cands if p["events"][-1:] != [{"type": "off", "min": s["min"]}]]
+            if s["type"] == "on" and len(cands) > 1:     # a replacement who never came on has an empty stat line
+                played = [p for p in cands if any(v for v in p["stats"].values())]
+                cands = played or cands
+            if len(cands) > 1 and s["side"]:
+                # two same-named players could be the one: the other half of a one-for-one swap that minute shows whether
+                # a front-rower went off or came on (front-rowers are replaced by front-rowers)
+                team, other = side_team[s["side"]], "on" if s["type"] == "off" else "off"
+                partners = []
+                for x in subs:
+                    if x is not s and x["type"] == other and x["side"] == s["side"] and x["min"] == s["min"]:
+                        rep = by_team_name.get((team, surname(x["name"])), [])
+                        if len(rep) == 1 and rep[0]["shirt"]:
+                            partners.append(rep[0]["shirt"])
+                fit = []
+                if len(partners) == 1:
+                    front = partners[0] in FRONT_ROW | FRONT_ROW_BENCH
+                    fit = [p for p in cands if (p["shirt"] in FRONT_ROW | FRONT_ROW_BENCH) == front]
+                if len(fit) == 1:
+                    cands = fit
+                    warn.append(f"'{s['name']}' {s['type']} {s['min']}' decided by position (shirt {fit[0]['shirt']})")
         if len(cands) == 1 and s["min"] is not None:
             cands[0]["events"].append({"type": s["type"], "min": s["min"]})
             on_pitch[id(cands[0])] = s["type"] == "on"
@@ -167,7 +195,8 @@ def build(meta: dict, d: dict, subs: list[dict], order: list[dict] | None = None
             warn.append(f"{t}: stat lines add up to {pts}, score {meta['score'][side]}")
     out = {"format": FORMAT, "source": "super-rugby", "competition": "Super Rugby", "season": meta["season"], "date": meta["date"],
            "home": meta["home"], "away": meta["away"], "teams": [meta["home"], meta["away"]], "score": meta["score"],
-           "players": [p for p in players if id(p) not in ambiguous], "url": meta["url"], "warnings": warn}
+           "players": [p for p in players if id(p) not in ambiguous], "url": meta["url"], "warnings": warn,
+           "raw": {"subs": subs, "order": order or [], "players": raw_players}}   # kept so the rules above can be re-applied without fetching again
     return out, warn
 
 
@@ -177,9 +206,24 @@ def main() -> None:
     ap.add_argument("--to", dest="y1", type=int, default=date.today().year)
     ap.add_argument("--out", default=str(ROOT / "data" / "super"))
     ap.add_argument("--limit", type=int, default=0, help="stop after N new matches (for testing)")
+    ap.add_argument("--rebuild", action="store_true", help="re-apply the rules to saved files that kept their raw extract; fetches nothing")
+    ap.add_argument("--refetch-left-out", action="store_true", help="fetch again the matches that left players out (saved before the raw timeline was kept)")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
+    if a.rebuild:
+        n = 0
+        for f in sorted(out.glob("s*.json")):
+            old = json.loads(f.read_text())
+            raw = old.get("raw", {})
+            if "players" not in raw:
+                continue
+            meta = {"id": f.stem[1:], **{k: old[k] for k in ("season", "date", "home", "away", "score", "url")}}
+            m, _ = build(meta, {"players": json.loads(json.dumps(raw["players"]))}, raw["subs"], raw["order"])
+            f.write_text(json.dumps(m, separators=(",", ":")))
+            n += 1
+        print(f"rebuilt {n} matches from their saved extracts")
+        return
 
     from playwright.sync_api import sync_playwright
     n_new = n_fail = n_warn = streak = pauses = 0
@@ -195,7 +239,8 @@ def main() -> None:
                 f = out / f"s{meta['id']}.json"
                 if f.exists():
                     old = json.loads(f.read_text())
-                    if old.get("format") == FORMAT and old.get("score") and old.get("players"):
+                    redo = a.refetch_left_out and "players" not in old.get("raw", {}) and any("left out" in w for w in old.get("warnings", []))
+                    if old.get("format") == FORMAT and old.get("score") and old.get("players") and not redo:
                         continue
                 try:
                     resp = nav.goto(meta["url"])

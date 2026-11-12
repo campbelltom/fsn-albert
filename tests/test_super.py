@@ -76,6 +76,48 @@ def test_shared_surnames_told_apart_by_who_is_on_the_pitch():
     assert warn == [], warn
 
 
+def test_two_same_named_replacements_told_apart_by_who_played():
+    ps = squad()
+    by = {p["id"]: p for p in ps}
+    by["h17"]["name"] = by["h18"]["name"] = "Latu"                  # both on the bench; only one comes on
+    by["h18"]["stats"]["attack:P"] = 2
+    subs = [{"type": "off", "side": "home", "name": "H3", "min": 41}, {"type": "on", "side": "home", "name": "Latu", "min": 41}]
+    m, warn = ss.build(META, {"players": ps}, subs, page_order(ps))
+    out = {p["id"]: p for p in m["players"]}
+    assert out["h18"]["events"] == [{"type": "on", "min": 41}] and out["h17"]["events"] == [] and not out["h17"]["started"]
+    assert warn == [], warn
+    assert m["raw"]["subs"] == subs, "the raw timeline is kept"
+
+
+def test_same_named_starters_told_apart_by_the_replacements_position():
+    ps = squad()
+    by = {p["id"]: p for p in ps}
+    by["h1"]["name"] = by["h9"]["name"] = "Robertson"               # a prop and a scrum-half
+    for n in (17, 21):
+        by[f"h{n}"]["stats"]["attack:P"] = 1
+    subs = [{"type": "off", "side": "home", "name": "Robertson", "min": 53}, {"type": "on", "side": "home", "name": "H17", "min": 53},
+            {"type": "off", "side": "home", "name": "Robertson", "min": 61}, {"type": "on", "side": "home", "name": "H21", "min": 61}]
+    m, warn = ss.build(META, {"players": ps}, subs, page_order(ps))
+    out = {p["id"]: p for p in m["players"]}
+    assert out["h1"]["events"] == [{"type": "off", "min": 53}] and out["h9"]["events"] == [{"type": "off", "min": 61}]
+    assert [w for w in warn if "decided by position" in w] and not [w for w in warn if "left out" in w]
+    assert len(m["raw"]["players"]) == 46, "the full extract is kept"
+
+
+def test_same_named_replacements_told_apart_by_who_went_off():
+    ps = squad()
+    by = {p["id"]: p for p in ps}
+    by["h16"]["name"] = by["h21"]["name"] = "Lonergan"              # a hooker and a scrum-half on the bench; both come on
+    for n in (16, 21):
+        by[f"h{n}"]["stats"]["attack:P"] = 1
+    subs = [{"type": "off", "side": "home", "name": "H2", "min": 54}, {"type": "on", "side": "home", "name": "Lonergan", "min": 54},
+            {"type": "off", "side": "home", "name": "H9", "min": 56}, {"type": "on", "side": "home", "name": "Lonergan", "min": 56}]
+    m, warn = ss.build(META, {"players": ps}, subs, page_order(ps))
+    out = {p["id"]: p for p in m["players"]}
+    assert out["h16"]["events"] == [{"type": "on", "min": 54}] and out["h21"]["events"] == [{"type": "on", "min": 56}]
+    assert not [w for w in warn if "left out" in w]
+
+
 def test_without_table_order_falls_back_and_leaves_out_shared_surnames():
     ps = squad()
     ps[5]["name"] = "Smith"; ps[6]["name"] = "Smith"                 # two Home starters called Smith

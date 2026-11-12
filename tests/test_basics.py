@@ -31,7 +31,7 @@ def test_pipeline_and_schema():
     from make_fixture import make, make_extra
     d = Path(tempfile.mkdtemp())
     make(d / "rfu"); make_extra(d / "rfu")
-    subprocess.check_call([sys.executable, str(ROOT / "scripts" / "run_production.py"), "--rfu", str(d / "rfu"), "--espn", str(d / "none"), "--out", str(d / "out"), "--no-encrypt", "--competition", "six-nations", "--snapshots", str(d / "snaps")])
+    subprocess.check_call([sys.executable, str(ROOT / "scripts" / "run_production.py"), "--rfu", str(d / "rfu"), "--espn", str(d / "none"), "--super", str(d / "none"), "--out", str(d / "out"), "--no-encrypt", "--competition", "six-nations", "--snapshots", str(d / "snaps")])
     j = json.loads((d / "out" / "predictions.json").read_text())
     assert all(p["team"] != "South Africa" for p in j["players"]), "non-Six-Nations players must be filtered out"
     assert j["history"]["matches"] == 48          # 45 Six Nations + 3 tests
@@ -107,7 +107,7 @@ def test_backtest_runs():
     d = Path(tempfile.mkdtemp())
     make(d / "rfu")
     out = subprocess.check_output([sys.executable, str(ROOT / "scripts" / "backtest.py"), "--competition", "Six Nations", "--rules", str(ROOT / "config" / "rules.json"),
-                                   "--rfu", str(d / "rfu"), "--espn", str(d / "none"), "--snapshots", str(d / "none")]).decode()
+                                   "--rfu", str(d / "rfu"), "--espn", str(d / "none"), "--super", str(d / "none"), "--snapshots", str(d / "none")]).decode()
     assert "Walk-forward: Six Nations" in out and "MAE" in out
 
 
