@@ -35,6 +35,12 @@ CLUB_VARIANTS = [         # club matches (Prem, Champions Cup, Challenge Cup) fe
     ("club_weight 1 (a club match counts as a Test)", {"club_weight": 1.0}),
 ]
 
+BENCH_ROLE_VARIANTS = [   # what role a replacement plays
+    ("bench shirt's role (old: 21 = scrum-half)", {"bench_role": "shirt"}),
+    ("his own usual starting role", {"bench_role": "player"}),
+    ("hybrid: bench shirts for rates, starting role for who he is", {"bench_role": "hybrid"}),
+]
+
 MINUTE_VARIANTS = [       # how a named 23's minutes are projected
     ("minutes by own history and bench shirt", {"bench_aware": False}),
     ("+ uncovered starters stay on (0.27)", {"bench_aware": True, "uncovered_keep": 0.27}),
@@ -61,7 +67,7 @@ def main() -> None:
     ap.add_argument("--super", default=str(ROOT / "data" / "super"), help="Super Rugby match files (scripts/scrape_super.py)")
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--skip", type=int, default=4, help="skip the first N rounds of each competition (little history)")
-    ap.add_argument("--set", default="settings", choices=["settings", "roles", "club", "minutes"], help="which family of variants to compare")
+    ap.add_argument("--set", default="settings", choices=["settings", "roles", "club", "minutes", "benchrole"], help="which family of variants to compare")
     a = ap.parse_args()
     R = load_json(a.rules)
     ov = load_json(ROOT / "config" / "overrides.json", {})
@@ -71,7 +77,7 @@ def main() -> None:
     comps = [c for c, n in per.items() if n >= 12 and c not in CLUB_COMPETITIONS]
     rows = []
     base = dict(model.PARAMS)
-    for name, ch in {"roles": ROLE_VARIANTS, "club": CLUB_VARIANTS, "minutes": MINUTE_VARIANTS}.get(a.set, VARIANTS):
+    for name, ch in {"roles": ROLE_VARIANTS, "club": CLUB_VARIANTS, "minutes": MINUTE_VARIANTS, "benchrole": BENCH_ROLE_VARIANTS}.get(a.set, VARIANTS):
         model.PARAMS.update(base); model.PARAMS.update(ch)
         parts = []
         for c in comps:

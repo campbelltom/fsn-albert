@@ -21,6 +21,8 @@ K_RATE = {"tries": 5.0, "assists": 6.0, "metres": 3.0, "db": 4.0, "tackles": 3.0
 STATS = list(K_RATE)
 MARGIN_SD = 14.0
 PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 0.5,   # tuned on 2023-26 walk-forward backtests (scripts/tune.py)
+          "bench_role": "hybrid",                    # a replacement's role: "shirt" = his bench shirt's (old); "player" = his usual starting role;
+                                                     # "hybrid" = bench shirts for learning rates, his starting role for who he is and when named on the bench
           "bench_aware": True,                       # named 23: a starter whose position group has no replacement on the bench stays on longer
           "uncovered_keep": 0.27,                    # ... losing this share fewer minutes (2023-26: 0.26-0.31; 2025-26 out of sample: error 10.8 -> 10.0)
           "club_weight": 0.1,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches); 0.1 chosen by scripts/tune.py --set club
@@ -111,10 +113,15 @@ class PlayerModel:
         h["played"] = h["minutes"] > 0
         h["sub_on"] = h["played"] & ~h["started"]
         det = PARAMS["role_detail"]
-        h["role"] = [role_of(s, det) for s in h["shirt"]]
+        # a starter's role is his shirt's; a replacement plays his own usual role, not his bench shirt's (a back-rower in 21 is no scrum-half)
+        mode = PARAMS["bench_role"]
+        h["role"] = [role_of(s, det) if s == s and (s <= 15 or mode in ("shirt", "hybrid")) else None for s in h["shirt"]]
         known = h.dropna(subset=["role"])
         modal = lambda d: d.groupby("pid")["role"].agg(lambda x: x.value_counts().index[0]).to_dict() if len(d) else {}  # noqa: E731
         self.modal_role = modal(known[known["club"]]) | modal(known[~known["club"]])      # his Test role where he has one
+        if mode != "shirt":                      # his usual role is the one he starts in, where he has starts
+            ks = known[known["shirt"] <= 15]
+            self.modal_role |= modal(ks[ks["club"]]) | modal(ks[~ks["club"]])
         dflt = lambda g: (g if det == "group" else GROUP_DEFAULT_ROLE.get(g, "WING"))  # noqa: E731
         h["role"] = h["role"].fillna(h["pid"].map(self.modal_role)).fillna(h["pos"].map(dflt)).fillna("WING" if det != "group" else "BACK3")
         full, h = h, h[~h["club"]]                               # baselines, selection and minutes: national-team matches only
@@ -212,6 +219,8 @@ class PlayerModel:
         g = self.h[(self.h["pid"] == pid) & (self.h["minutes"] >= 1)]
         if len(g) == 0:
             return {fallback: 1.0}
+        if PARAMS["bench_role"] != "shirt" and g["started"].any():
+            g = g[g["started"]]                  # what he plays when he starts, not his bench shirts
         sh = g.groupby("role")["w"].sum()
         sh = sh / sh.sum()
         sh = sh[sh >= 0.08]
@@ -346,7 +355,8 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                 if ent is None:
                     ln, ps, pb = "X", 0.0, 0.0
                 else:
-                    rl = role_of(ent[0], PARAMS["role_detail"]) or mrole          # the shirt he wears decides his role (23 = utility: his usual one)
+                    # a starter's shirt decides his role; a replacement plays his usual role (a back-rower in 21 is no scrum-half)
+                    rl = (role_of(ent[0], PARAMS["role_detail"]) if ent[0] <= 15 or PARAMS["bench_role"] == "shirt" else None) or mrole
                     roles = {rl: 1.0}
                     if ent[0] <= 15:
                         ln, ps, pb = "S", 1.0 * avail, 0.0
