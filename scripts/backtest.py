@@ -24,13 +24,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--competition", default="Nations Championship")
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
+    ap.add_argument("--super", default=str(ROOT / "data" / "super"), help="Super Rugby match files (scripts/scrape_super.py)")
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--rules", default=str(ROOT / "config" / "rules_nc.json"))
     ap.add_argument("--snapshots", default=str(ROOT / "data" / "snapshots"))
     a = ap.parse_args()
     R = load_json(a.rules)
     ov = load_json(ROOT / "config" / "overrides.json", {})
-    dirs = [d for d in (a.rfu, a.espn) if Path(d).exists()]
+    dirs = [d for d in (a.rfu, a.super, a.espn) if Path(d).exists()]
     hist = load_matches(*dirs, tackles_include_missed=R["assumptions"]["tackles_include_missed"])
     R, _ = with_measured_scrums(R, hist) if not hist.empty else (R, None)
     out = []

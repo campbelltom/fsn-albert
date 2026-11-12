@@ -99,6 +99,7 @@ def pool_report(res, pool, used) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
+    ap.add_argument("--super", default=str(ROOT / "data" / "super"), help="Super Rugby match files (scripts/scrape_super.py)")
     ap.add_argument("--espn", default=str(ROOT / "data" / "espn"))
     ap.add_argument("--out", default=str(ROOT / "site" / "data"))
     ap.add_argument("--competition", default=None, help="key in config/competitions.json (default: the active one)")
@@ -111,7 +112,7 @@ def main() -> None:
     comp = cfg["competitions"][key]
     R = load_json(ROOT / comp["rules"])
     notes: list[str] = []
-    dirs = [d for d in (a.rfu, a.espn) if Path(d).exists()]
+    dirs = [d for d in (a.rfu, a.super, a.espn) if Path(d).exists()]
     hist = load_matches(*dirs, tackles_include_missed=R["assumptions"]["tackles_include_missed"])
     if hist.empty:
         raise SystemExit("no match data found - run scripts/scrape_rfu.py first")

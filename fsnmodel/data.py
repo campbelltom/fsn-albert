@@ -27,9 +27,10 @@ def parse_date(s: str | None):
     return pd.NaT
 
 
-def minutes_on_pitch(shirt: int | None, events: list | None, match_min: int = MATCH_MIN) -> tuple[float, bool]:
-    """(minutes played, started) from shirt number and Opta on/off events (blood bins handled)."""
-    started = bool(shirt and shirt <= 15)
+def minutes_on_pitch(shirt: int | None, events: list | None, match_min: int = MATCH_MIN, started: bool | None = None) -> tuple[float, bool]:
+    """(minutes played, started) from shirt number and Opta on/off events (blood bins handled).
+    `started` overrides the shirt where a source has no shirt numbers (Super Rugby)."""
+    started = bool(shirt and shirt <= 15) if started is None else bool(started)
     on = 0 if started else None
     total = 0.0
     for e in (events or []):
@@ -70,7 +71,7 @@ def match_rows(m: dict, est_minutes_start: float = 68.0, est_minutes_sub: float 
             mins = est_minutes_start if started else (est_minutes_sub if active else 0.0)
             est = True
         else:
-            mins, started = minutes_on_pitch(shirt, p.get("events"))
+            mins, started = minutes_on_pitch(shirt, p.get("events"), started=p.get("started"))
             est = False
         scr = (m.get("team_stats") or {}).get(p.get("team"), {}).get("scrumsWon")
         tk = _g(s, "defence:Tackles Attempted")
