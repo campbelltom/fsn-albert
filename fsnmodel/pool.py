@@ -10,11 +10,15 @@ from .identity import surname
 POOL_POS = {"Prop": "PROP", "Hooker": "HOOK", "Lock": "LOCK", "Loose Forward": "BR", "Scrum Half": "SH", "Fly Half": "FH", "Centre": "CEN", "Back Three": "BACK3"}
 
 
+PARTICLES = {"van", "von", "de", "du", "le", "la", "di", "da", "der", "den", "ten", "ter", "mac", "mc", "del", "dos", "dal"}
+
+
 def initial(name: str | None) -> str | None:
-    n = (name or "").strip()
-    if ". " in n or (len(n) > 2 and "." in n[:4]):
-        return n[0].lower()
-    return None            # RFU names are surnames only
+    """First initial of a given name: 'F. Smith' and 'Fin Smith' -> 'f'. None when the name is a bare surname ('Smith', 'Du Toit')."""
+    t = (name or "").split()
+    if len(t) < 2 or t[0].lower().strip(".") in PARTICLES:
+        return None
+    return t[0][0].lower() if t[0][0].isalpha() else None
 
 
 def load_pool(path) -> pd.DataFrame:
@@ -25,14 +29,16 @@ def load_pool(path) -> pd.DataFrame:
     return d
 
 
-def _pick(pool: pd.DataFrame, used: set, name: str, hemi: str, grp: str | None):
+def _pick(pool: pd.DataFrame, used: set, name: str, hemi: str, grp: str | None, relax: bool = False):
     c = pool[(pool["sn"] == surname(name)) & (pool["hemi"] == hemi) & (~pool.index.isin(used))]
     ini = initial(name)
-    if ini:                                       # a known first initial is binding: same surname, different person otherwise
+    if ini and not relax:                         # a known first initial is binding: same surname, different person otherwise
         c = c[(c["ini"] == ini) | c["ini"].isna()]
     if len(c) > 1 and grp:
         c2 = c[c["grp"] == grp]
         c = c2 if len(c2) else c
+    if relax and grp:                             # second chance (known-as names differ from registered ones): the position must agree
+        c = c[c["grp"] == grp]
     return c.index[0] if len(c) == 1 else None
 
 
@@ -52,6 +58,13 @@ def match_history(hist: pd.DataFrame, pool: pd.DataFrame, hemi: dict, pos: pd.Se
             out[pid] = idx; used.add(idx)
         else:
             ambiguous += 1
+    # second pass: players whose registered first name is not the one the game uses (Juan Ignacio "Nacho" Brex); only a sole same-position candidate is taken
+    for pid in order:
+        if pid in out or not hemi.get(last.loc[pid, "team"]):
+            continue
+        idx = _pick(pool, used, last.loc[pid, "name"], hemi[last.loc[pid, "team"]], pos.get(pid), relax=True)
+        if idx is not None:
+            out[pid] = idx; used.add(idx); ambiguous -= 1
     return out, {"matched": len(out), "unmatched_history": ambiguous, "used": used}
 
 

@@ -119,6 +119,9 @@ def load_matches(*dirs, tackles_include_missed: bool = True) -> pd.DataFrame:
     df = df.copy()
     df["match_key"] = df["date"].dt.strftime("%Y%m%d").fillna("nodate") + "_" + df[["team", "opp"]].apply(lambda r: "_".join(sorted(r)), axis=1)
     from .identity import resolve_ids
+    # the RFU tables write some players as a bare surname ("Curry") in some matches: keep the fullest name seen, so brothers stay distinguishable
+    full = df.assign(_n=df["name"].fillna("").str.split().str.len()).sort_values(["pid", "_n", "date"]).groupby("pid")["name"].last()
+    df["name"] = df["pid"].map(full)
     return resolve_ids(df.sort_values(["date", "match_key"]).reset_index(drop=True))
 
 

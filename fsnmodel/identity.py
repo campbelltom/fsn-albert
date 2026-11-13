@@ -74,4 +74,14 @@ def resolve_ids(df: pd.DataFrame) -> pd.DataFrame:
         k = (r.team, r.sn)
         if r.sn and rg.get(k, 0) == 1 and eg.get(k, 0) == 1:
             mapping[r.pid] = r1[k] if not isinstance(r1[k], pd.Series) else r1[k].iloc[0]
+    # namesakes (the Barrett, Curry, Smith brothers) are unique only once the given name's initial is part of the key
+    ini = lambda d: d["name"].map(lambda n: given(n)[:1])  # noqa: E731
+    rp2, ep2 = rp.assign(gi=ini(rp)), ep.assign(gi=ini(ep))
+    rg2 = rp2[rp2["gi"] != ""].groupby(["team", "sn", "gi"])["pid"].nunique()
+    eg2 = ep2[ep2["gi"] != ""].groupby(["team", "sn", "gi"])["pid"].nunique()
+    r2 = rp2[rp2["gi"] != ""].drop_duplicates(["team", "sn", "gi"]).set_index(["team", "sn", "gi"])["pid"]
+    for r in ep2.itertuples():
+        k = (r.team, r.sn, r.gi)
+        if r.pid not in mapping and r.sn and r.gi and rg2.get(k, 0) == 1 and eg2.get(k, 0) == 1:
+            mapping[r.pid] = r2[k]
     return df.assign(pid=df["pid"].replace(mapping)) if mapping else df

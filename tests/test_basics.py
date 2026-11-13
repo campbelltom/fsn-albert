@@ -184,3 +184,13 @@ def test_lineup_names_split_brothers_and_keep_returners():
     assert ix.match("Italy", "Garbisi", 9) == "b"                     # no given name: the shirt's position decides
     assert ix.match("Italy", "Paolo Garbisi", 10) == "a"
     assert ix.match("France", "Gregory Alldritt", 8) == "e"           # accents
+
+
+def test_namesake_players_merge_across_sources_and_keep_full_names():
+    import pandas as pd
+    from fsnmodel.identity import resolve_ids
+    d = pd.Timestamp("2026-07-01")
+    rows = [dict(pid="r1", name="Scott Barrett", team="New Zealand", source="rfu", date=d), dict(pid="r2", name="Jordie Barrett", team="New Zealand", source="rfu", date=d),
+            dict(pid="e1", name="S. Barrett", team="New Zealand", source="espn", date=d), dict(pid="e2", name="Jordie Barrett", team="New Zealand", source="espn", date=d)]
+    out = resolve_ids(pd.DataFrame(rows))
+    assert list(out["pid"]) == ["r1", "r2", "r1", "r2"]
