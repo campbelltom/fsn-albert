@@ -15,7 +15,10 @@ PARTICLES = {"van", "von", "de", "du", "le", "la", "di", "da", "der", "den", "te
 
 def initial(name: str | None) -> str | None:
     """First initial of a given name: 'F. Smith' and 'Fin Smith' -> 'f'. None when the name is a bare surname ('Smith', 'Du Toit')."""
-    t = (name or "").split()
+    n = (name or "").strip()
+    if len(n) > 2 and n[1] == "." and n[2] != " ":
+        n = n[:2] + " " + n[2:]                   # "T.Reffell" is written without the space in the pool
+    t = n.split()
     if len(t) < 2 or t[0].lower().strip(".") in PARTICLES:
         return None
     return t[0][0].lower() if t[0][0].isalpha() else None
