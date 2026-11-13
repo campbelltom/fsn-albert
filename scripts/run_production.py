@@ -171,6 +171,13 @@ def main() -> None:
             keep.append(p)
         res["players"] = keep
         pool_report(res, pool, used)
+    # which of each named 23 made it into the projections (a name missing here is a pool or history matching problem, not a selection)
+    have = {p["id"] for p in res["players"]}
+    lineup_check = []
+    for (rd_, tm_), mp_ in sorted(lm.items()):
+        miss = [f"{sh} {nm}" for pid_, (sh, nm) in sorted(mp_.items(), key=lambda kv: kv[1][0]) if pid_ not in have]
+        lineup_check.append({"round": rd_, "team": tm_, "named": len(mp_), "projected": len(mp_) - len(miss), "missing": miss})
+        print(f"lineup check R{rd_} {tm_}: {len(mp_) - len(miss)}/{len(mp_)} projected" + (f"; missing: {', '.join(miss)}" if miss else ""))
     for w in save_snapshots(res, fx["fixtures"], key, asof, a.snapshots):
         notes.append(f"Snapshot taken: {w}")
     # official prices, once published: config/prices.csv with columns id,price (Opta player id)
@@ -189,7 +196,7 @@ def main() -> None:
     data = {
         "generated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "season": fx["season"], "competition": comp["label"], "competitionKey": key, "progress": {"finished": st["finished"], "current": st["current"], "nextKickoff": st["next_kickoff"].isoformat(timespec="minutes") if st["next_kickoff"] else None}, "history": {"seasons": seasons, "matches": int(hist["match_key"].nunique())},
-        "ingest": ingest_summary(hist, a.rfu, lm, fx, pool, used if pool is not None else set(), res["players"]), "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
+        "ingest": {**ingest_summary(hist, a.rfu, lm, fx, pool, used if pool is not None else set(), res["players"]), "lineupCheck": lineup_check}, "rules": R, "hemisphere": comp.get("hemisphere"), "notes": notes, **res,
     }
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     if a.no_encrypt:

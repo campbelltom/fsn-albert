@@ -417,7 +417,8 @@ function renderData(){
       ['Real substitution minutes (not estimated)', C.realMinutesPct + '%'],
       ['Turnovers won recorded', C.turnoversPct + '%'],
       ['Shirt number known', C.shirtPct + '%']]) + '<div class="info">ESPN rows have flat estimated minutes and no turnovers won, so these rise as more RFU matches are scraped.</div>') +
-    box('Named lineups', tb(['Round','Teams named'], I.lineups.map(r => ['Round ' + r.round, r.named + ' of ' + r.teams])) + '<div class="info">Teams without a named lineup use predicted starters.</div>') +
+    box('Named lineups', tb(['Round','Teams named'], I.lineups.map(r => ['Round ' + r.round, r.named + ' of ' + r.teams])) + '<div class="info">Teams not yet named are valued as if every player starts.</div>' +
+      (I.lineupCheck && I.lineupCheck.length ? tb(['Team','In projections'], I.lineupCheck.map(c => ['R' + c.round + ' ' + c.team, c.projected + ' of ' + c.named + (c.missing.length ? '<br><small>missing: ' + c.missing.join(', ') + '</small>' : '')])) : '')) +
     (I.pool ? box('Official player pool', tb(['','Players'], [['In the game', I.pool.size], ['Matched to match data', I.pool.matched], ['No match history (excluded)', I.pool.unmatched], ['Shown on the Players tab', I.pool.inSite]])) : '') +
     box('Most recent matches', tb(['Date','Match','Score','Source'], I.latest.slice().reverse().map(r => [dt(r.date).replace(/ \d{4}$/, ''), r.home + ' v ' + r.away, r.score, r.source.toUpperCase()])));
 }
