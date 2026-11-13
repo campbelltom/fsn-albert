@@ -37,8 +37,8 @@ def _pick(pool: pd.DataFrame, used: set, name: str, hemi: str, grp: str | None, 
     if len(c) > 1 and grp:
         c2 = c[c["grp"] == grp]
         c = c2 if len(c2) else c
-    if relax and grp:                             # second chance (known-as names differ from registered ones): the position must agree
-        c = c[c["grp"] == grp]
+    if relax:                                     # second chance (known-as names differ from registered ones): the position must agree
+        c = c[c["grp"] == grp] if grp else c.iloc[0:0]
     return c.index[0] if len(c) == 1 else None
 
 
