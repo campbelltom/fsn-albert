@@ -264,6 +264,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
     # current team per player = team of latest appearance (override wins)
     latest = nat.sort_values("date").groupby("pid").tail(1).set_index("pid")
     cand = []
+    include = include | {pid_ for mp_ in (lineup_map or {}).values() for pid_ in mp_}     # a named player is projected however long since his last Test
     for pid, r in latest.iterrows():
         if pid in exclude or (only_pids is not None and pid not in only_pids):
             continue

@@ -167,3 +167,20 @@ def test_finals_pairings_from_full_league():
     final = [f for f in ff if f["final"] == 1][0]
     assert (final["home"], final["away"], final["date"], final["ko"]) == ("Ireland", "South Africa", "2026-11-29", "16:40")
     assert {f["final"]: (f["date"], f["ko"]) for f in ff}[6] == ("2026-11-27", "16:40")
+
+
+def test_lineup_names_split_brothers_and_keep_returners():
+    import pandas as pd
+    from fsnmodel.identity import NameIndex
+    h = pd.DataFrame([
+        dict(pid="a", name="Paolo Garbisi", team="Italy", date=pd.Timestamp("2026-07-01"), shirt=10),
+        dict(pid="b", name="Alessandro Garbisi", team="Italy", date=pd.Timestamp("2026-07-01"), shirt=9),
+        dict(pid="c", name="Zander Fagerson", team="Scotland", date=pd.Timestamp("2026-07-01"), shirt=3),
+        dict(pid="d", name="Matt Fagerson", team="Scotland", date=pd.Timestamp("2026-07-01"), shirt=8),
+        dict(pid="e", name="Grégory Alldritt", team="France", date=pd.Timestamp("2025-01-01"), shirt=8)])
+    ix = NameIndex(h)
+    assert ix.match("Scotland", "Zander Fagerson", 3) == "c" and ix.match("Scotland", "M. Fagerson", 6) == "d"
+    assert ix.match("Italy", "A. Garbisi", 22) == "b"                 # initial alone is enough, whatever the shirt
+    assert ix.match("Italy", "Garbisi", 9) == "b"                     # no given name: the shirt's position decides
+    assert ix.match("Italy", "Paolo Garbisi", 10) == "a"
+    assert ix.match("France", "Gregory Alldritt", 8) == "e"           # accents

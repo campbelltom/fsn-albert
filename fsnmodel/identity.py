@@ -13,18 +13,47 @@ def surname(name: str | None) -> str:
     return toks[-1] if toks else ""
 
 
+def _tokens(name: str | None) -> list[str]:
+    n = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode().lower().replace("'", "").replace("`", "")
+    return [t for t in re.sub(r"[^a-z\- ]", " ", n).split() if t]
+
+
+def given(name: str | None) -> str:
+    """The first given name or initial ('Zander Fagerson' -> 'zander', 'Z. Fagerson' -> 'z'), '' if only a surname is known."""
+    t = _tokens(name)
+    return t[0] if len(t) > 1 else ""
+
+
 class NameIndex:
-    """(team, surname) -> pids seen in the history (latest team per player)."""
+    """(team, surname) -> pids seen in the history (latest team per player). Brothers and namesakes are told apart by given name,
+    then by the shirt they last wore (a fly-half Garbisi is not the scrum-half)."""
 
     def __init__(self, hist: pd.DataFrame):
         last = hist.sort_values("date").groupby("pid").tail(1)
         self.map: dict[tuple, set] = {}
+        self.info: dict[str, tuple[str, int | None]] = {}
         for r in last.itertuples():
             self.map.setdefault((r.team, surname(r.name)), set()).add(r.pid)
+            sh = getattr(r, "shirt", None)
+            self.info[r.pid] = (given(r.name), int(sh) if sh == sh and sh is not None else None)
 
-    def match(self, team: str, name: str) -> str | None:
+    def match(self, team: str, name: str, shirt: int | None = None) -> str | None:
         c = self.map.get((team, surname(name)), set())
-        return next(iter(c)) if len(c) == 1 else None
+        if len(c) <= 1:
+            return next(iter(c)) if c else None
+        g = given(name)
+        if g:
+            by_name = {p for p in c if self.info[p][0] and (self.info[p][0] == g or self.info[p][0][0] == g[0] and (len(g) == 1 or len(self.info[p][0]) == 1))}
+            if len(by_name) == 1:
+                return next(iter(by_name))
+            c = by_name or c
+        if shirt:
+            from .common import BENCH_POS, SHIRT_POS
+            want = SHIRT_POS.get(shirt) if shirt <= 15 else BENCH_POS.get(shirt)
+            by_pos = {p for p in c if self.info[p][1] and (SHIRT_POS.get(self.info[p][1]) if self.info[p][1] <= 15 else BENCH_POS.get(self.info[p][1])) == want}
+            if len(by_pos) == 1:
+                return next(iter(by_pos))
+        return None
 
 
 def resolve_ids(df: pd.DataFrame) -> pd.DataFrame:

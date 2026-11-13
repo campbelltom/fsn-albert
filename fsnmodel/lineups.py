@@ -56,7 +56,7 @@ def build_lineup_map(items: list[dict], hist, fixtures: list[dict]) -> tuple[dic
                 continue
             pid = p.get("id") if p.get("id") in known else None
             if pid is None and idx:
-                pid = idx.match(it["team"], p.get("name"))
+                pid = idx.match(it["team"], p.get("name"), int(p["shirt"]))
             if pid is None:
                 pid = f"n:{it['team']}:{surname(p.get('name'))}:{p['shirt']}" if not p.get("id") else p["id"]
                 n_new += 1
