@@ -24,6 +24,7 @@ PARAMS = {"half_life": 900.0, "team_hl": TEAM_HALF_LIFE, "k_scale": 0.4, "ctx": 
           "bench_role": "hybrid",                    # a replacement's role: "shirt" = his bench shirt's (old); "player" = his usual starting role;
                                                      # "hybrid" = bench shirts for learning rates, his starting role for who he is and when named on the bench
           "bench_aware": True,                       # named 23: a starter whose position group has no replacement on the bench stays on longer
+          "bench_rate": 1.3,                         # replacements score ~1.3x the per-80 rate of a starter's minutes (fresh legs, high-tempo finish): walk-forward bench 6.9 projected vs 9.2 actual
           "uncovered_keep": 0.27,                    # ... losing this share fewer minutes (2023-26: 0.26-0.31; 2025-26 out of sample: error 10.8 -> 10.0)
           "club_weight": 0.1,                        # how much one club match counts towards a player's form, relative to a Test (0 = ignore club matches); 0.1 chosen by scripts/tune.py --set club
           "role_detail": "shirt", "k_team": 8.0}     # role_detail: "shirt" = 11 roles by shirt number, "group" = the 8 fantasy positions; k_team: pseudo 80-min games pulling a team's role baseline to the global one
@@ -381,7 +382,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
                     for k_, v_ in c_.items():
                         acc[k_] += q_ * v_
                 return acc
-            cs, cb = pts_for(em_start), pts_for(em_sub)
+            cs, cb = pts_for(em_start), {k_: v_ * PARAMS["bench_rate"] for k_, v_ in pts_for(em_sub).items()}
             comp = {c: ps * cs.get(c, 0) + pb * cb.get(c, 0) for c in COMPONENTS if c not in ("potm", "team")}
             es = sum(cs.values()); eb = sum(cb.values())
             P = R["points"]
