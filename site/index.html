@@ -371,8 +371,9 @@ function chipPanel(res, rs){
 function drawSquad(res, rs, ms){
   const subMult = (p, res) => {
     const rr = res.perRound.filter(x => x.supersub === p.id).map(x => x.round);
-    const st = rr.filter(r => p.fx && p.fx[r] && p.fx[r].ln === 'S').length;
-    return st === rr.length && rr.length ? '½×' : (st ? '3×/½×' : '3×');
+    const n = l => rr.filter(r => p.fx && p.fx[r] && p.fx[r].ln === l).length;
+    if (!rr.length) return '3×';
+    return n('B') === rr.length ? '3×' : n('S') === rr.length ? '½×' : n('B') || n('S') ? '3×/½×' : '3×?';   // 3×? = 23 not named yet
   };
   const capCount = {}, subCount = {};
   res.perRound.forEach(r => { capCount[r.captain] = (capCount[r.captain]||0)+1; if (r.supersub) subCount[r.supersub] = (subCount[r.supersub]||0)+1; });

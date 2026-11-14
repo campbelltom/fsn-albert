@@ -235,6 +235,13 @@ class PlayerModel:
         out = {s: (base[s] if base else self.g_rate(role, s)) * u.get(s, 1.0) for s in self._cols()}
         return out
 
+    def start_share(self, pid: str) -> float:
+        """Share of his recent appearances that were starts (recency weighted); 0.7 with no history. Used to value a super sub when the 23 is not named yet."""
+        g = self.h[(self.h["pid"] == pid) & (self.h["minutes"] >= 1)]
+        if len(g) == 0:
+            return 0.7
+        return float((g["w"] * g["started"].astype(float)).sum() / g["w"].sum())
+
     # ---- minutes (who plays is never predicted: it comes from the named 23)
     def appearance(self, pid: str, team: str, role: str) -> dict:
         g = self.h[self.h["pid"] == pid]
@@ -400,7 +407,7 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
         if len(top) > 1 and top[0][1] < 0.85:
             flags.append("plays " + "/".join(r_ for r_, _ in top[:2]))
         players.append(dict(pid=pid, name=r["name"], team=team, pos=p, caps=ap["caps"], e80=e80, flags=flags, roles=[[r_, round(q_, 2)] for r_, q_ in top[:3]],
-                            comp=comp_round, raw=es_r))
+                            comp=comp_round, raw=es_r, sshare=pm.start_share(pid)))
 
     # POTM heuristic: P(team wins) share-weighted by the squad's attacking output
     potm_share = R["assumptions"].get("potm_win_share", 0.85)
@@ -433,6 +440,10 @@ def project(hist: pd.DataFrame, pos: pd.Series, fixtures: list[dict], rules: dic
             S = R["supersub"]
             # value if nominated supersub: x3 when he comes on, x0.5 when he starts / does not come on
             sup = pb * S["on"] * eb + S["off"] * ps * es
+            if ln is None:
+                # 23 not named yet: he starts as often as he has before, otherwise he is a replacement at the usual bench rate
+                sh_ = pl["sshare"]
+                sup = sh_ * S["off"] * es + (1 - sh_) * 0.85 * S["on"] * eb
             exps.append(round(total, 2)); sups.append(round(sup, 2)); comps.append({k: round(v, 2) for k, v in c.items()})
         fixtures_p = []
         for ri, rd in enumerate(rounds):
