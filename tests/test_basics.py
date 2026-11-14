@@ -194,3 +194,27 @@ def test_namesake_players_merge_across_sources_and_keep_full_names():
             dict(pid="e1", name="S. Barrett", team="New Zealand", source="espn", date=d), dict(pid="e2", name="Jordie Barrett", team="New Zealand", source="espn", date=d)]
     out = resolve_ids(pd.DataFrame(rows))
     assert list(out["pid"]) == ["r1", "r2", "r1", "r2"]
+
+
+def test_attach_played_marks_kicked_off_and_records_actuals():
+    import sys
+    from datetime import datetime, timezone
+    import pandas as pd
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    from run_production import attach_played
+    from fsnmodel.common import load_json
+    R = load_json(Path(__file__).resolve().parent.parent / "config" / "rules_nc.json")
+    cols = ["tries", "assists", "metres", "db", "tackles", "tw", "ls", "pc", "yc", "rc", "conv", "pen", "dg", "offloads", "cb", "missed", "lw", "err"]
+    row = {c: 0.0 for c in cols} | dict(date=pd.Timestamp("2026-11-13"), team="France", opp="South Africa", competition="Nations Championship",
+                                         pf=21, pa=19, pid="a1", started=False, minutes=45.0, tries=1.0)
+    hist = pd.DataFrame([row])
+    res = {"rounds": [{"round": 5}], "players": [
+        {"id": "a1", "team": "France", "fx": [{"opp": "South Africa"}]},
+        {"id": "b2", "team": "Fiji", "fx": [{"opp": "Ireland"}]}]}
+    fx = [{"round": 5, "date": "2026-11-13", "ko": "20:10", "home": "France", "away": "South Africa"},
+          {"round": 5, "date": "2026-11-14", "ko": "20:10", "home": "Ireland", "away": "Fiji"}]
+    out = attach_played(res, fx, hist, pd.Series({"a1": "HOOK"}), R, datetime(2026, 11, 14, 9, 0, tzinfo=timezone.utc))
+    assert out == {"kicked": 1, "scored": 1}
+    f = res["players"][0]["fx"][0]
+    assert f["locked"] and f["st"] is False and f["act"] >= R["points"]["win"]
+    assert "locked" not in res["players"][1]["fx"][0]

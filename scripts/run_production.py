@@ -97,6 +97,45 @@ def pool_report(res, pool, used) -> None:
         print(f"  rank correlation, projected points/round vs the game's own points so far (n={len(d)}): {d['exp'].corr(d['pts'], method='spearman'):.2f}; vs price: {d['exp'].corr(d['price'], method='spearman'):.2f}")
 
 
+def attach_played(res: dict, live_fx: list, hist: pd.DataFrame, pos: pd.Series, R: dict, now) -> dict:
+    """Mark fixtures that have kicked off and add each player's actual points (individual + win/draw) where the match stats are loaded."""
+    from fsnmodel.evaluate import actual_points
+    from fsnmodel.schedule import kickoff
+    rounds = [r["round"] for r in res["rounds"]]
+    intl = international(hist)
+    kicked = scored = 0
+    P = R["points"]
+    for f in live_fx:
+        if kickoff(f) > now:
+            continue
+        kicked += 1
+        m = intl[((intl["date"] - pd.Timestamp(f["date"])).abs() <= pd.Timedelta(days=1)) & (intl["team"].isin([f["home"], f["away"]])) & (intl["opp"].isin([f["home"], f["away"]]))]
+        act = {}
+        if len(m):
+            scored += 1
+            pts = actual_points(m, pos, R)
+            for (_, row), v in zip(m.iterrows(), pts):
+                won = row["pf"] > row["pa"]
+                v = float(v) + (P["win"] if won else P["draw"] if row["pf"] == row["pa"] else 0.0)
+                act[str(row["pid"])] = (round(v, 1), bool(row["started"]), float(row["minutes"]))
+        ri = rounds.index(f["round"]) if f["round"] in rounds else None
+        if ri is None:
+            continue
+        for p in res["players"]:
+            if p["team"] not in (f["home"], f["away"]):
+                continue
+            fx = p["fx"][ri]
+            if fx is None:
+                continue
+            fx["locked"] = True
+            a = act.get(p["id"])
+            if a is not None and a[2] > 0:
+                fx["act"], fx["st"], fx["mins"] = a
+            elif act:
+                fx["act"], fx["st"], fx["mins"] = 0.0, False, 0.0      # in the match data's team but did not play
+    return {"kicked": kicked, "scored": scored} if kicked else {}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rfu", default=str(ROOT / "data" / "rfu"))
@@ -171,6 +210,10 @@ def main() -> None:
             keep.append(p)
         res["players"] = keep
         pool_report(res, pool, used)
+    # matches in the live rounds that have kicked off: those players are locked in the game. Where the stats are in, record what they scored.
+    locked = attach_played(res, live_fx, hist, pos, R, now)
+    if locked:
+        notes.append(f"{locked['kicked']} match(es) have kicked off ({locked['scored']} with stats in): their players are locked in the squad builder at actual points where known.")
     # which of each named 23 made it into the projections (a name missing here is a pool or history matching problem, not a selection)
     have = {p["id"] for p in res["players"]}
     lineup_check = []

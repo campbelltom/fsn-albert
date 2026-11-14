@@ -76,7 +76,7 @@
   function optimise(players, opts) {
     const rules = opts.captainMult ? Object.assign({}, opts.rules, { captain_multiplier: opts.captainMult }) : opts.rules;
     const rounds = opts.rounds, budget = opts.budget ?? rules.squad.budget, hemi = opts.hemisphere || null;
-    const keep = new Set(opts.keep || []), ban = new Set(opts.ban || []);
+    const keep = new Set(opts.keep || []), ban = new Set(opts.ban || []), keepBench = new Set(opts.keepBench || []);   // keep = starts (his own position slot); keepBench = locked on the bench
     const eps = opts.eps ?? 0.02;
     const chips = opts.chips || null;               // {tc, cc}: chips still available to plan
     const slots = slotList(rules);
@@ -89,7 +89,7 @@
     const K = { lam: 2.5 * (ratios[Math.floor(ratios.length * 0.75)] || 1), big: 3 * Math.max(1, ...pool.map(total)) };
     const rng = mulberry(opts.seed ?? 12345);
     const restarts = opts.restarts ?? 8, iters = opts.iters ?? 30000;
-    const keepers = pool.filter(p => keep.has(p.id));
+    const keepers = pool.filter(p => keep.has(p.id) || keepBench.has(p.id));
     let best = null;
 
     for (let rs = 0; rs < restarts; rs++) {
@@ -98,7 +98,7 @@
       const used = new Set();
       const frozen = new Array(slots.length).fill(false);
       for (const k of keepers) {
-        let i = slots.findIndex((s, ix) => !team[ix] && s === k.pos);
+        let i = keepBench.has(k.id) ? -1 : slots.findIndex((s, ix) => !team[ix] && s === k.pos);
         if (i < 0) i = slots.findIndex((s, ix) => !team[ix] && s === 'BENCH');
         if (i >= 0) { team[i] = k; used.add(k.id); frozen[i] = true; }
       }
@@ -175,6 +175,18 @@
     return { xv, bench, perRound, chips: plan, points: perRound.reduce((a, x) => a + x.points, 0), objective, cost, budget };
   }
 
-  const api = { optimise, evaluate, slotList, planChips, bestChips, chipGains };
+  /* Players whose match has kicked off are locked in the game: where the stats are in (fx[r].act), use what they actually scored
+   * (x3 if he came on as the super sub, x0.5 if he started, 0 if he did not play) instead of the projection. */
+  function withActuals(players, rules) {
+    const S = rules.supersub || { on: 3, off: 0.5 };
+    return players.map(p => {
+      if (!p.fx || !p.fx.some(f => f && f.act != null)) return p;
+      const exp = p.exp.slice(), sup = p.sup.slice();
+      p.fx.forEach((f, r) => { if (f && f.act != null) { exp[r] = f.act; sup[r] = f.mins > 0 ? f.act * (f.st ? S.off : S.on) : 0; } });
+      return Object.assign({}, p, { exp, sup });
+    });
+  }
+
+  const api = { withActuals, optimise, evaluate, slotList, planChips, bestChips, chipGains };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SQUAD = api;
 })(typeof window !== 'undefined' ? window : globalThis);

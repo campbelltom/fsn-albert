@@ -174,7 +174,7 @@ footer p{margin:0 0 6px}
         <button class="btn" id="sqClear" style="height:40px">Clear keeps/bans</button>
       </div>
       <div class="panel" id="sqSum"></div>
-      <div id="sqView"><div class="empty">Choose a horizon and pick the best squad. Open a player on the Players tab to keep or ban him first.</div></div>
+      <div id="sqView"><div class="empty">Choose a horizon and pick the best squad. Open a player on the Players tab to keep him (as a starter or on the bench) or ban him first. Players whose match has kicked off count at what they actually scored once the stats are in.</div></div>
       <div class="panel" id="sqLists" hidden></div>
     </section>
     <section id="tabFixtures" hidden></section>
@@ -204,8 +204,8 @@ const ROLE_LABEL = {PROP:'Prop',HOOK:'Hooker',LOCK:'Lock',FLK:'Flanker',N8:'No.8
 const COMP_LABEL = {tries:'Tries',assists:'Try assists',kicking:'Kicking',carrying:'Carries & breaks',tackles:'Tackles',steals:'Turnovers & steals',discipline:'Discipline',potm:'Player of the match',team:'Team result'};
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 window.D = null; let state = { pos:'ALL', team:'ALL', scope:'next', sort:'pts', q:'', open:null };
-let keep = new Set(JSON.parse(store.get('fsn.keep')||'[]')), ban = new Set(JSON.parse(store.get('fsn.ban')||'[]'));
-const saveLists = () => { store.set('fsn.keep', JSON.stringify([...keep])); store.set('fsn.ban', JSON.stringify([...ban])); };
+let keep = new Set(JSON.parse(store.get('fsn.keep')||'[]')), ban = new Set(JSON.parse(store.get('fsn.ban')||'[]')), keepB = new Set(JSON.parse(store.get('fsn.keepb')||'[]'));
+const saveLists = () => { store.set('fsn.keep', JSON.stringify([...keep])); store.set('fsn.ban', JSON.stringify([...ban])); store.set('fsn.keepb', JSON.stringify([...keepB])); };
 
 async function decrypt(pkg, password){
   const enc = new TextEncoder();
@@ -266,7 +266,7 @@ function start(data){
     el.onchange = () => store.set('fsn.chip.' + key, el.value === '1' ? 'available' : 'used');
   }
   $('#sqGo').onclick = runSquad;
-  $('#sqClear').onclick = () => { keep.clear(); ban.clear(); saveLists(); renderList(); renderLists(); };
+  $('#sqClear').onclick = () => { keep.clear(); ban.clear(); keepB.clear(); saveLists(); renderList(); renderLists(); };
   renderFixtures(); renderData(); renderFoot(); renderList(); renderLists();
 }
 function showTab(t){
@@ -288,8 +288,8 @@ function renderList(){
     const t = total(p, rs);
     const bars = p.exp.map((x,i) => `<i class="${rs.includes(i)?'sel':''}" style="height:${Math.max(2, x/maxR*100)}%"></i>`).join('');
     const f0 = p.fx[rs[0]], LN = {S:'Starting',B:'Bench',X:'Not in 23'};
-    const fl = (f0 && f0.ln ? `<span class="flag ln-${f0.ln}">${LN[f0.ln]}${f0.rl ? ' · ' + (ROLE_LABEL[f0.rl] || f0.rl) : ''}</span>` : '') + p.flags.slice(0,1).map(f => `<span class="flag">${f}</span>`).join('');
-    const tag = keep.has(p.id) ? ' ✓' : ban.has(p.id) ? ' ✕' : '';
+    const fl = (f0 && f0.ln ? `<span class="flag ln-${f0.ln}">${LN[f0.ln]}${f0.rl ? ' · ' + (ROLE_LABEL[f0.rl] || f0.rl) : ''}</span>` : '') + (f0 && f0.locked ? `<span class="flag">${f0.act != null ? 'Played · ' + fmt(f0.act) + ' pts' : 'Kicked off'}</span>` : '') + p.flags.slice(0,1).map(f => `<span class="flag">${f}</span>`).join('');
+    const tag = keep.has(p.id) ? ' ✓' : keepB.has(p.id) ? ' ✓B' : ban.has(p.id) ? ' ✕' : '';
     return `<article class="item p-${p.pos} ${state.open===p.id?'open':''}" data-id="${p.id}">
       <button class="row" aria-expanded="${state.open===p.id}">
         <span><span class="l1"><span class="chip">${POS_SHORT[p.pos]}</span><span class="nm">${p.name}${tag}</span>${fl}</span>
@@ -308,23 +308,23 @@ function detail(p, rs){
   return `<div class="detail">
     <div><h3>Round by round</h3><div class="gws">${gws}</div>
       <div class="info">${p.roles && p.roles.length > 1 ? 'Plays ' + p.roles.map(r => (ROLE_LABEL[r[0]] || r[0]) + ' ' + Math.round(r[1]*100) + '%').join(', ') + '. ' : ''}${p.own != null ? p.own + '% of managers own him' + (p.poolPts != null ? ' · ' + p.poolPts + ' game points so far' : '') + '. ' : ''}${p.fx[0] && p.fx[0].ln ? 'Named lineup: S = starting, B = bench, X = not in the 23. ' : ''}${p.fx.some(f => f && !f.ln) ? 'Rounds without a named 23 assume he starts. ' : ''}About ${Math.round(p.eMin)} min a match · ${p.caps} caps in the data</div>
-      <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep in squad'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
+      <div class="acts"><button class="btn ${keep.has(p.id)?'on':''}" data-act="keep">${keep.has(p.id)?'Kept ✓':'Keep as starter'}</button><button class="btn ${keepB.has(p.id)?'on':''}" data-act="keepb">${keepB.has(p.id)?'On bench ✓':'Keep on bench'}</button><button class="btn ${ban.has(p.id)?'on':''}" data-act="ban">${ban.has(p.id)?'Banned ✕':'Ban'}</button></div></div>
     <div><h3>Where the points come from</h3><div class="comp">${rows}</div></div></div>`;
 }
 $('#list').addEventListener('click', e => {
   const art = e.target.closest('.item'); if (!art) return;
   const id = art.dataset.id;
   const act = e.target.closest('[data-act]');
-  if (act) { const a = act.dataset.act; const s = a==='keep'?keep:ban, o = a==='keep'?ban:keep; if (s.has(id)) s.delete(id); else { s.add(id); o.delete(id); } saveLists(); renderList(); renderLists(); return; }
+  if (act) { const a = act.dataset.act; const s = a==='keep'?keep:a==='keepb'?keepB:ban; if (s.has(id)) s.delete(id); else { keep.delete(id); keepB.delete(id); ban.delete(id); s.add(id); } saveLists(); renderList(); renderLists(); return; }
   if (e.target.closest('.row')) { state.open = state.open === id ? null : id; renderList(); }
 });
 
 /* ---------- squad ---------- */
 function renderLists(){
   const el = $('#sqLists'); const byId = Object.fromEntries(D.players.map(p => [p.id, p]));
-  if (!keep.size && !ban.size) { el.hidden = true; return; }
+  if (!keep.size && !keepB.size && !ban.size) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<div class="lbl">Kept</div>${[...keep].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}<div class="lbl">Banned</div>${[...ban].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}`;
+  el.innerHTML = `<div class="lbl">Kept as starters</div>${[...keep].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}<div class="lbl">Kept on the bench</div>${[...keepB].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}<div class="lbl">Banned</div>${[...ban].map(i => byId[i]?.name).filter(Boolean).join(', ') || '–'}`;
 }
 function runSquad(){
   const s = $('#sqScope').value; const rs = scopeRounds(s === 'next' ? '0' : s);
@@ -333,7 +333,7 @@ function runSquad(){
   setTimeout(() => {
     const t0 = performance.now();
     const chips = { tc: $('#sqTC').value === '1', cc: $('#sqCC').value === '1' };
-    const res = SQUAD.optimise(D.players, { rules: D.rules, rounds: rs, budget, keep: [...keep], ban: [...ban], hemisphere: D.hemisphere, chips, restarts: 10, iters: 40000 });
+    const res = SQUAD.optimise(SQUAD.withActuals(D.players, D.rules), { rules: D.rules, rounds: rs, budget, keep: [...keep], keepBench: [...keepB], ban: [...ban], hemisphere: D.hemisphere, chips, restarts: 10, iters: 40000 });
     $('#sqGo').disabled = false; $('#sqGo').textContent = 'Pick best squad';
     if (!res) { $('#sqView').innerHTML = '<div class="empty">No legal squad found: loosen the keeps or raise the budget.</div>'; $('#sqSum').innerHTML = ''; return; }
     drawSquad(res, rs, Math.round(performance.now()-t0));
