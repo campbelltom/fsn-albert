@@ -42,8 +42,16 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
     ap.add_argument("--out", default=str(ROOT / "config" / "nc_pool.csv"))
+    ap.add_argument("--merge", action="store_true", help="keep players missing from the paste (the page is sorted by points and often cuts off before the 0-point players)")
     a = ap.parse_args()
     rows = parse(Path(a.src).read_text())
+    if a.merge and Path(a.out).exists():
+        seen = {(r["name"], r["hemi"], r["pos"]) for r in rows}
+        keep = [r for r in csv.DictReader(open(a.out)) if (r["name"], r["hemi"], r["pos"]) not in seen]
+        for r in keep:
+            r.update({k: (float(v) if v not in ("", None) else None) for k, v in r.items() if k not in ("name", "pos", "hemi")})
+        print(f"kept {len(keep)} players the paste did not list")
+        rows += keep
     with open(a.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
