@@ -369,6 +369,11 @@ function chipPanel(res, rs){
     <div class="info">Extra points each chip adds for this squad, one chip per round.${rs.length > 1 ? '' : ' Pick a longer horizon to compare rounds.'}${prov ? ' * Teams not named yet: everyone is valued as a starter, so these values can fall when the 23s are announced. Decide on a round once its teams are named.' : ''}</div></div>`;
 }
 function drawSquad(res, rs, ms){
+  const subMult = (p, res) => {
+    const rr = res.perRound.filter(x => x.supersub === p.id).map(x => x.round);
+    const st = rr.filter(r => p.fx && p.fx[r] && p.fx[r].ln === 'S').length;
+    return st === rr.length && rr.length ? '½×' : (st ? '3×/½×' : '3×');
+  };
   const capCount = {}, subCount = {};
   res.perRound.forEach(r => { capCount[r.captain] = (capCount[r.captain]||0)+1; if (r.supersub) subCount[r.supersub] = (subCount[r.supersub]||0)+1; });
   $('#sqSum').innerHTML = `<div class="sum"><div><b>${fmt(res.points)}</b><span>projected points (${rs.length} round${rs.length>1?'s':''}, captain, supersub${res.chips && res.chips.best.value > 0 ? ' and chips' : ''})</span></div><div><b>${money(res.cost)}</b><span>of ${money(res.budget)}</span></div><div><b>${fmt(res.points/rs.length)}</b><span>per round</span></div></div>` + chipPanel(res, rs);
@@ -380,8 +385,8 @@ function drawSquad(res, rs, ms){
     if (g[0] === 'PROP') { const pr = ps.filter(p => p.pos === 'PROP'), hk = ps.filter(p => p.pos === 'HOOK'); ps = [...pr.slice(0, 1), ...hk, ...pr.slice(1)]; }
     return `<div class="line">${ps.map(p => tile(p, p.id===cap ? '<span class="cap">C</span>' : '')).join('')}</div>`;
   }).join('');
-  $('#sqView').innerHTML = `<div class="pitch">${lines}</div><div class="lbl">Bench</div><div class="line">${res.bench.map(p => tile(p, p.id===sub ? '<span class="cap s">3×</span>' : '')).join('')}</div>
-    <div class="info">Found in ${ms} ms. C = most-used captain, 3× = most-used supersub across the chosen rounds. ${D.players.some(p => p.priceEst) ? 'Prices are estimates (*) until official prices are added.' : ''}</div>`;
+  $('#sqView').innerHTML = `<div class="pitch">${lines}</div><div class="lbl">Bench</div><div class="line">${res.bench.map(p => tile(p, p.id===sub ? `<span class="cap s">${subMult(p, res)}</span>` : '')).join('')}</div>
+    <div class="info">Found in ${ms} ms. C = most-used captain, 3× = most-used supersub across the chosen rounds (shown as ½× where he is a named starter, so he only earns half his points and no bonus). ${D.players.some(p => p.priceEst) ? 'Prices are estimates (*) until official prices are added.' : ''}</div>`;
 }
 
 /* ---------- fixtures & footer ---------- */
