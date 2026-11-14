@@ -2,7 +2,7 @@ name: Update projections
 
 on:
   schedule:
-    - cron: "40 */3 * * *"        # every 3 hours; match days can be tightened later
+    - cron: "40 * * * *"          # hourly: late team changes (like a hooker dropped to the bench on the day) need to reach the site before kick-off
   workflow_dispatch: {}
   push:
     branches: [main]
